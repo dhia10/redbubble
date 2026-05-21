@@ -1,0 +1,45 @@
+# ============================================================
+# requirements.txt — Redbubble Automation (Free Tier)
+# Install: pip install -r requirements.txt
+# Then:    playwright install chromium
+# ============================================================
+
+# --- Core ---
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+
+# --- HTTP / Scraping ---
+httpx>=0.27.0
+beautifulsoup4>=4.12.3
+lxml>=5.2.2
+
+# --- Browser Automation (Redbubble uploader) ---
+playwright>=1.44.0
+
+# --- Image Processing (free, local) ---
+Pillow>=10.3.0
+
+# --- Google Trends (free, no key needed) ---
+pytrends>=4.9.2
+
+# --- Data Analysis ---
+pandas>=2.2.2
+numpy>=1.26.4
+
+# --- Dashboard ---
+streamlit>=1.35.0
+plotly>=5.22.0
+
+# --- Scheduling ---
+schedule>=1.2.2
+
+# --- Utilities ---
+tenacity>=8.3.0
+
+# --- Testing ---
+pytest>=8.2.2
+
+# ============================================================
+# OPTIONAL — only needed if you set OPENAI_API_KEY in .env
+# pip install openai>=1.30.0
+# ============================================================

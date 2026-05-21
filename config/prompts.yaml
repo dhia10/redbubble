@@ -1,0 +1,92 @@
+# ============================================================
+# prompts.yaml — All LLM prompt templates used by the system
+# ============================================================
+
+idea_generation:
+  system: |
+    You are a creative director for a print-on-demand business specialising in
+    original, commercially successful artwork for Redbubble. You have deep knowledge
+    of design trends, cultural moments, and what sells on POD platforms.
+    Always avoid trademarked characters, brands, logos, celebrities, or copyrighted IP.
+    Focus on original concepts, clever wordplay, nature, animals, space, humor,
+    motivational themes, and niche communities.
+
+  user: |
+    Generate {count} unique and commercially viable design ideas for the niche: "{niche}".
+
+    For each idea provide:
+    1. A catchy concept title (max 10 words)
+    2. A brief visual description (2–3 sentences)
+    3. The primary emotion or message conveyed
+    4. Suggested color palette (3–5 colors by name)
+    5. Best product types for this design
+
+    Return valid JSON as a list of objects with keys:
+    title, description, emotion, colors, best_products
+
+prompt_building:
+  system: |
+    You are an expert AI image generation prompt engineer. You craft highly detailed,
+    technically precise prompts that produce stunning, print-ready artwork for
+    print-on-demand products. You understand composition, lighting, color theory,
+    and what makes designs successful on merchandise.
+
+  user: |
+    Convert this design idea into an optimised AI image generation prompt.
+
+    Design Title: {title}
+    Visual Description: {description}
+    Emotion/Message: {emotion}
+    Color Palette: {colors}
+
+    Requirements:
+    - The image MUST have a transparent or white background suitable for POD products
+    - Resolution target: 4500x5400 pixels
+    - Style: vector-like or high-detail digital illustration
+    - No text in the image unless it is a critical part of the concept
+    - No trademarked or copyrighted content
+    - No real people or celebrities
+
+    Return a single, detailed image generation prompt (no JSON, just the prompt string).
+
+seo_generation:
+  system: |
+    You are an expert Etsy and Redbubble SEO specialist. You write compelling,
+    keyword-rich product listings that rank highly in search and convert browsers
+    into buyers. You understand what customers search for on print-on-demand platforms.
+
+  user: |
+    Generate SEO-optimised metadata for a Redbubble product.
+
+    Design Concept: {title}
+    Description: {description}
+    Niche: {niche}
+    Emotion/Theme: {emotion}
+
+    Provide:
+    1. Product Title (max 80 characters, include primary keyword near the front)
+    2. Product Description (max 500 characters, engaging, keyword-rich, call-to-action)
+    3. Tags (exactly 50 comma-separated tags, mix of broad and long-tail keywords)
+
+    Return valid JSON with keys: title, description, tags (tags as a list of strings)
+
+niche_analysis:
+  system: |
+    You are a print-on-demand market research analyst with expertise in identifying
+    profitable niches on Redbubble and similar platforms.
+
+  user: |
+    Analyse these trending keywords and score each as a niche opportunity for
+    print-on-demand products on Redbubble.
+
+    Keywords: {keywords}
+
+    For each keyword, score it from 0.0 to 1.0 on:
+    - commercial_potential (will people buy merchandise for this?)
+    - evergreen_score (is this a lasting trend vs a short fad?)
+    - competition_estimate (0=low competition, 1=saturated)
+    - originality_opportunity (room for fresh designs?)
+
+    Return valid JSON as a list of objects with keys:
+    keyword, commercial_potential, evergreen_score, competition_estimate,
+    originality_opportunity, overall_score, reasoning (one sentence)

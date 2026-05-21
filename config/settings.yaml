@@ -1,0 +1,79 @@
+# ============================================================
+# settings.yaml — FREE TIER configuration
+# Image provider: Leonardo AI (free 150 tokens/day)
+# Text generation: Template-based (zero cost, no API needed)
+# ============================================================
+
+app:
+  name: "Redbubble Automation System"
+  version: "1.0.0"
+  debug: false
+  log_level: "INFO"
+  log_dir: "logs"
+  log_max_bytes: 5242880
+  log_backup_count: 7
+
+database:
+  path: "data/database.db"
+  echo_sql: false
+
+pipeline:
+  niches_per_run: 2               # Free tier: keep low (2 niches × 2 ideas = 4 images/day)
+  ideas_per_niche: 2              # Free tier: 2 ideas per niche
+  max_upload_retries: 3
+  upload_delay_seconds: 8         # Polite delay between uploads
+  dry_run: false                  # Set true to test without uploading
+  text_backend: "template"        # "template" (free) or "openai" (paid)
+
+trend_detection:
+  sources:
+    - google_trends
+    - redbubble_trending
+  google_trends_timeframe: "now 7-d"
+  min_niche_score: 0.35           # Slightly lower threshold since we use templates
+  top_niches_to_return: 10
+
+image_generation:
+  provider: "leonardo"            # FREE: leonardo ai
+  width: 768                      # Generate at 768 (free tier friendly)
+  height: 768
+  upscale_to_print: true          # Upscale to 4500×5400 with Pillow after generation
+  target_width: 4500
+  target_height: 5400
+  format: "PNG"
+  background: "transparent"
+  model: "b24e16ff-06e3-43eb-8d33-4416c2d75876"  # Leonardo Phoenix
+  quality: "standard"
+  output_dir: "data/images"
+  # Free tier budget management
+  max_daily_images: 10            # Stay safely under 150 token limit
+  tokens_per_image: 12            # ~12 tokens at 768×768
+
+seo:
+  title_max_length: 80
+  description_max_length: 500
+  max_tags: 50
+  language: "en"
+
+redbubble:
+  base_url: "https://www.redbubble.com"
+  login_url: "https://www.redbubble.com/auth/login"
+  upload_url: "https://www.redbubble.com/portfolio/images/new"
+  headless: false              # Visible browser avoids Cloudflare bot detection
+  slow_mo_ms: 120
+  timeout_ms: 90000
+  screenshot_on_error: true
+  products_to_enable:
+    - "t-shirt"
+    - "sticker"
+    - "poster"
+    - "mug"
+    - "phone-case"
+
+scheduler:
+  run_time: "09:00"               # Daily run time (local time)
+  timezone: "UTC"
+
+analytics:
+  track_interval_hours: 24
+  min_views_to_rank: 3
