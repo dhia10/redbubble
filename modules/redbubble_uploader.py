@@ -1027,8 +1027,9 @@ class RedbubbleUploader:
         ]:
             try:
                 loc = page.locator(ph_sel).first
-                if loc.count() > 0 and loc.is_visible(timeout=3_000):
-                    loc.click()
+                if loc.count() > 0:
+                    loc.scroll_into_view_if_needed(timeout=3_000)
+                    loc.click(force=True)
                     loc.fill(main_tag_text)
                     logger.info("Main Tag filled (%s): %s", ph_sel, main_tag_text)
                     tag_filled_any = True
@@ -1043,8 +1044,9 @@ class RedbubbleUploader:
         ]:
             try:
                 loc = page.locator(ph_sel).first
-                if loc.count() > 0 and loc.is_visible(timeout=3_000):
-                    loc.click()
+                if loc.count() > 0:
+                    loc.scroll_into_view_if_needed(timeout=3_000)
+                    loc.click(force=True)
                     loc.fill(supporting_text)
                     logger.info("Supporting Tags filled (%s).", ph_sel)
                     tag_filled_any = True
@@ -1199,47 +1201,56 @@ class RedbubbleUploader:
         self._enable_products(page)
 
         # --- Select No for mature content (mandatory radio) ---
+        # click() triggers React onChange; check()/checked= do NOT.
         try:
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            self._human_delay(0.5, 1.0)
             no_btn = page.locator('#work_safe_for_work_true').first
             if no_btn.count() > 0:
-                no_btn.check(force=True)
+                no_btn.scroll_into_view_if_needed(timeout=3_000)
+                no_btn.click(force=True)
                 self._human_delay(0.3, 0.6)
+                page.evaluate(
+                    "() => {"
+                    "  const r = document.querySelector('#work_safe_for_work_true');"
+                    "  if (r) { r.checked = true;"
+                    "    ['click','change','input'].forEach(t => r.dispatchEvent("
+                    "      new Event(t, {bubbles:true, cancelable:true})));"
+                    "  }"
+                    "}"
+                )
                 logger.info("Mature content radio set to No (safe for work).")
             else:
-                alt = page.locator('input[name*="safe_for_work"][value="true"]').first
-                if alt.count() > 0:
-                    alt.check(force=True)
-                    self._human_delay(0.3, 0.6)
-                    logger.info("Mature content radio set to No (alt selector).")
-                else:
-                    logger.warning("Mature content radio not found.")
+                logger.warning("Mature content radio #work_safe_for_work_true not found.")
         except Exception as exc:
             logger.warning("Could not set mature content radio: %s", exc)
-        self._human_delay(0.3, 0.7)
+        self._human_delay(0.5, 1.0)
 
         # --- Tick the Rights Declaration checkbox (required for form submit) ---
+        # Must use click() — React ignores programmatic check()/checked= changes.
         try:
             rights = page.locator('#rightsDeclaration').first
             if rights.count() > 0:
+                rights.scroll_into_view_if_needed(timeout=3_000)
                 if not rights.is_checked():
-                    rights.check(force=True)
+                    rights.click(force=True)
                     self._human_delay(0.3, 0.5)
-                    if not rights.is_checked():
-                        page.evaluate(
-                            "() => { const cb = document.querySelector('#rightsDeclaration');"
-                            " if (cb && !cb.checked) { cb.checked = true;"
-                            " cb.dispatchEvent(new Event('change', {bubbles:true})); } }"
-                        )
-                        logger.info("Rights declaration ticked via JS fallback.")
-                    else:
-                        logger.info("Rights declaration checkbox ticked.")
-                else:
-                    logger.info("Rights declaration already checked.")
+                # Belt-and-suspenders: also fire React synthetic events via JS
+                page.evaluate(
+                    "() => {"
+                    "  const cb = document.querySelector('#rightsDeclaration');"
+                    "  if (cb) { cb.checked = true;"
+                    "    ['click','change','input'].forEach(t => cb.dispatchEvent("
+                    "      new Event(t, {bubbles:true, cancelable:true})));"
+                    "  }"
+                    "}"
+                )
+                logger.info("Rights declaration ticked (click + JS events).")
             else:
                 logger.warning("Rights declaration checkbox not found.")
         except Exception as exc:
             logger.warning("Could not tick rights declaration: %s", exc)
-        self._human_delay(0.3, 0.7)
+        self._human_delay(0.5, 1.0)
 
         # --- Save / Publish ---
         logger.info("Clicking publish / save button…")
@@ -1312,6 +1323,24 @@ class RedbubbleUploader:
 
         logger.info("Upload successful. URL: %s | work_id: %s",
                     product_url, work_id)
+
+        # ── Navigate back to /new so next upload can reuse this tab ──────
+        # Without this, the tab stays on /studio/promote/... and the next
+        # run finds no redbubble.com/new tab, opens a fresh one, and
+        # triggers Cloudflare again.
+        try:
+            logger.info("Navigating tab back to upload page for next run…")
+            page.goto(
+                self.UPLOAD_URL,
+                wait_until="domcontentloaded",
+                timeout=30_000,
+            )
+            logger.info("Tab ready for next upload: %s", page.url[:80])
+        except Exception as nav_back_exc:
+            logger.warning(
+                "Could not navigate back to /new (non-fatal): %s", nav_back_exc
+            )
+
         return UploadResult(
             success=True,
             product_url=product_url,

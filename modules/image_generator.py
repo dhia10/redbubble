@@ -275,15 +275,22 @@ class ImageGenerator:
     def _download_image(
         self, img_url: str, client: httpx.Client
     ) -> ImageResult:
-        """Download an image from URL and save to disk."""
+        """Download an image from URL and re-save as proper RGBA PNG."""
         filename = self._unique_filename()
         out_path = self.output_dir / filename
         try:
             img_resp = client.get(img_url, timeout=30)
             img_resp.raise_for_status()
-            out_path.write_bytes(img_resp.content)
-            logger.info("Image downloaded: %s (%d bytes)",
-                        out_path, len(img_resp.content))
+            raw_data = img_resp.content
+            # Re-open and convert to RGBA PNG (Leonardo may return JPEG)
+            from PIL import Image as PILImage
+            import io as _io
+            with PILImage.open(_io.BytesIO(raw_data)) as _img:
+                _img_rgba = _img.convert("RGBA")
+                _img_rgba.save(str(out_path), format="PNG", optimize=False)
+            saved_size = out_path.stat().st_size
+            logger.info("Image downloaded → RGBA PNG: %s (%d bytes, orig %d bytes)",
+                        out_path, saved_size, len(raw_data))
             return ImageResult(
                 success=True,
                 file_path=str(out_path),
@@ -369,8 +376,13 @@ class ImageGenerator:
 
     def _upscale_to_print(self, result: ImageResult) -> ImageResult:
         """
-        Upscale / pad the generated image to TARGET_WIDTH × TARGET_HEIGHT
-        using high-quality Lanczos resampling. Pure Pillow — completely free.
+        Upscale the generated image to TARGET_WIDTH × TARGET_HEIGHT using
+        high-quality Lanczos resampling, then save as 300-DPI transparent PNG.
+
+        Key fix: PIL's thumbnail() only SHRINKS — it never enlarges.
+        We use resize() with the calculated scale factor so the artwork
+        actually fills the canvas (e.g. 768px → 4500px) instead of staying
+        tiny in the center of a transparent canvas.
         """
         try:
             from PIL import Image as PILImage
@@ -378,44 +390,65 @@ class ImageGenerator:
             img_path = Path(result.file_path)
             with PILImage.open(img_path) as img:
                 orig_w, orig_h = img.size
-                result.width_px  = orig_w
-                result.height_px = orig_h
-                result.format    = img.format or "PNG"
+
+                # Ensure RGBA (transparent background support)
+                img = img.convert("RGBA")
 
                 if orig_w == self.target_width and orig_h == self.target_height:
-                    result.is_valid       = True
-                    result.validation_msg = "OK (already at target size)"
+                    # Already correct size — just enforce 300 DPI metadata
+                    img.save(
+                        str(img_path), format="PNG",
+                        dpi=(300, 300), optimize=False,
+                    )
+                    result.width_px        = orig_w
+                    result.height_px       = orig_h
+                    result.format          = "PNG"
+                    result.is_valid        = True
+                    result.validation_msg  = "OK (already at target size, DPI set)"
                     result.file_size_bytes = img_path.stat().st_size
                     return result
 
-                # Resize proportionally, then pad with transparent canvas
-                img = img.convert("RGBA")
-                img.thumbnail(
-                    (self.target_width, self.target_height),
-                    PILImage.LANCZOS,
-                )
-                canvas = PILImage.new(
+                # Scale UP proportionally so the artwork fills the target canvas.
+                # thumbnail() only shrinks — resize() handles enlargement correctly.
+                scale   = min(self.target_width / orig_w,
+                              self.target_height / orig_h)
+                new_w   = int(orig_w * scale)
+                new_h   = int(orig_h * scale)
+                scaled  = img.resize((new_w, new_h), PILImage.LANCZOS)
+
+                # Paste onto fully-transparent canvas (correct Redbubble format)
+                canvas  = PILImage.new(
                     "RGBA",
                     (self.target_width, self.target_height),
-                    (255, 255, 255, 0),    # Transparent
+                    (0, 0, 0, 0),          # Fully transparent background
                 )
-                offset_x = (self.target_width  - img.width)  // 2
-                offset_y = (self.target_height - img.height) // 2
-                canvas.paste(img, (offset_x, offset_y), img)
-                canvas.save(str(img_path), format="PNG", optimize=False)
+                offset_x = (self.target_width  - new_w) // 2
+                offset_y = (self.target_height - new_h) // 2
+                canvas.paste(scaled, (offset_x, offset_y), scaled)
+
+                # Save with 300 DPI metadata (important for Redbubble validation)
+                canvas.save(
+                    str(img_path), format="PNG",
+                    dpi=(300, 300), optimize=False,
+                )
 
             result.width_px        = self.target_width
             result.height_px       = self.target_height
             result.file_size_bytes = img_path.stat().st_size
+            result.format          = "PNG"
             result.is_valid        = True
             result.validation_msg  = (
                 f"Upscaled {orig_w}×{orig_h} → "
-                f"{self.target_width}×{self.target_height}"
+                f"{self.target_width}×{self.target_height} "
+                f"(scale={scale:.2f}x, 300 DPI)"
             )
-            logger.info("Upscaled %dx%d → %dx%d | %s",
-                        orig_w, orig_h,
-                        self.target_width, self.target_height,
-                        result.file_path)
+            size_mb = result.file_size_bytes / 1024 / 1024
+            logger.info(
+                "Upscaled %dx%d → %dx%d (%.2fx) @ 300 DPI | %.1f MB | %s",
+                orig_w, orig_h,
+                self.target_width, self.target_height,
+                scale, size_mb, result.file_path,
+            )
 
         except ImportError:
             result.is_valid       = True
