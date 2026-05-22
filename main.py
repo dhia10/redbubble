@@ -192,7 +192,77 @@ class Pipeline:
         self.log.info("%d niches scored above threshold.", len(scored))
 
         self._stage("3/10  Niche Selection")
-        top = scored[: self.niches_per_run]
+        # Filter out niches used in the last 7 days to ensure variety
+        import datetime as _dt
+        _cutoff = (_dt.datetime.utcnow() - _dt.timedelta(days=7)).isoformat()
+        fresh = []
+        repeated = []
+        for nd in scored:
+            kw = nd.get("keyword", "")
+            try:
+                # FIX: _conn is a context manager — use it properly
+                with self.db._conn() as _c:
+                    row = _c.execute(
+                        "SELECT last_used_at FROM niches WHERE keyword=?", (kw,)
+                    ).fetchone()
+                if row and row["last_used_at"] and row["last_used_at"] > _cutoff:
+                    repeated.append(nd)   # used recently — deprioritise
+                    continue
+            except Exception:
+                pass
+            fresh.append(nd)
+
+        # Prefer fresh niches; fall back to repeated ones if not enough
+        candidates = fresh + repeated
+
+        # ── Diversity check: prevent two niches sharing the same primary word ──
+        # e.g. "dog lover" and "cute dog" must not both be picked in same run
+        _ANIMAL_WORDS = {
+            "cat", "dog", "fox", "wolf", "bear", "rabbit", "owl",
+            "penguin", "frog", "axolotl", "sloth", "deer", "horse",
+            "koala", "duck", "shark", "turtle", "butterfly",
+        }
+        _THEME_WORDS = {
+            "witch", "space", "galaxy", "mushroom", "coffee", "plant",
+            "ocean", "mountain", "teacher", "nurse", "gamer", "reader",
+            "yoga", "hiking", "fishing", "cycling", "pizza", "unicorn",
+            "dragon", "dinosaur", "mermaid", "astronaut", "halloween",
+        }
+
+        def _primary_token(kw: str) -> str:
+            """Return the dominant word so we can enforce one-per-topic."""
+            words = set(kw.lower().split())
+            animals = words & _ANIMAL_WORDS
+            if animals:
+                return next(iter(animals))
+            themes = words & _THEME_WORDS
+            if themes:
+                return next(iter(themes))
+            return kw.split()[0]
+
+        diverse_top: list[dict] = []
+        used_tokens: set[str] = set()
+        for nd in candidates:
+            token = _primary_token(nd.get("keyword", ""))
+            if token not in used_tokens:
+                diverse_top.append(nd)
+                used_tokens.add(token)
+            if len(diverse_top) >= self.niches_per_run:
+                break
+        # Safety fallback: if diversity filter left us short, pad with remainder
+        if len(diverse_top) < self.niches_per_run:
+            for nd in candidates:
+                if nd not in diverse_top:
+                    diverse_top.append(nd)
+                if len(diverse_top) >= self.niches_per_run:
+                    break
+
+        top = diverse_top
+        self.log.info(
+            "Niche selection: %d fresh, %d repeated → diverse pick: %s",
+            len(fresh), len(repeated),
+            [n.get("keyword") for n in top],
+        )
         niche_records: list[tuple[int, str]] = []
         for nd in top:
             kw = nd.get("keyword", "")
@@ -415,17 +485,30 @@ class _FreeNicheScorer:
     ])
 
     _HIGH_VALUE_WORDS = frozenset([
-        "cat", "dog", "fox", "axolotl", "frog", "mushroom", "witch",
-        "nurse", "teacher", "engineer", "gamer", "reader", "hiker",
-        "coffee", "pizza", "plant", "space", "moon", "galaxy",
-        "funny", "cute", "kawaii", "vintage", "retro", "aesthetic",
-        "mental health", "cottagecore", "dark academia", "goblincore",
+        # Animals (proven sellers)
+        "cat", "dog", "axolotl", "frog", "fox", "mushroom", "capybara", "duck",
+        "corgi", "husky", "panda",
+        # Occupations (gift niche = high purchase intent)
+        "nurse", "teacher", "engineer", "firefighter", "paramedic", "librarian",
+        "veterinarian", "pharmacist", "dentist", "mechanic", "chef",
+        # Aesthetics that convert
+        "witch", "cottagecore", "goblincore", "academia",
+        "kawaii", "aesthetic", "botanical",
+        # Lifestyle identity
+        "gamer", "reader", "hiker", "cyclist", "yogi", "climber",
+        "introvert", "coffee", "pizza", "plant",
+        # POD-specific boosters
+        "funny", "cute", "vintage", "retro", "gift", "mom", "dad", "lover",
+        "pride", "mental", "awareness",
+        # Space / cosmos (strong art print sales)
+        "space", "moon", "galaxy", "nebula", "cosmos",
     ])
 
     def __init__(self, min_score: float = 0.35) -> None:
         self.min_score = min_score
 
     def score_keywords(self, keywords: list[str]) -> list[dict]:
+        import random as _rng
         results: list[dict] = []
         seen: set[str] = set()
 
@@ -444,6 +527,9 @@ class _FreeNicheScorer:
                 continue
 
             score = self._heuristic_score(kw_lower)
+            # Add small random jitter (±0.06) so tied niches don't always
+            # resolve in the same deterministic order across runs
+            score = round(min(0.95, max(0.30, score + _rng.uniform(-0.06, 0.06))), 3)
             if score >= self.min_score:
                 results.append({
                     "keyword":                kw_lower,
@@ -464,13 +550,15 @@ class _FreeNicheScorer:
         return results
 
     def _heuristic_score(self, kw: str) -> float:
-        score = 0.5   # Base score
+        score = 0.50   # Base score
 
         words = kw.split()
 
-        # Multi-word niches tend to be less saturated
+        # Multi-word niches are less saturated on Redbubble
         if len(words) >= 2:
-            score += 0.10
+            score += 0.08
+        if len(words) >= 3:
+            score += 0.05  # 3-word niches are even more specific
 
         # High-value words boost
         for word in words:
@@ -478,19 +566,44 @@ class _FreeNicheScorer:
                 score += 0.15
                 break
 
-        # Compound niche (e.g. "space cat") — very good
-        animal_words = {"cat", "dog", "fox", "wolf", "bear", "axolotl",
-                        "frog", "rabbit", "owl", "penguin", "koala"}
-        theme_words  = {"space", "galaxy", "witch", "magic", "mushroom",
-                        "coffee", "plant", "ocean", "mountain", "sunset"}
-        has_animal = any(w in animal_words for w in words)
-        has_theme  = any(w in theme_words  for w in words)
+        # Compound niche — "space cat", "witch fox", "mushroom frog" (POD gold)
+        _ANIMALS = {"cat", "dog", "fox", "wolf", "bear", "axolotl", "frog",
+                    "rabbit", "owl", "penguin", "koala", "capybara", "duck",
+                    "corgi", "husky", "panda", "crow", "raven", "ghost"}
+        _THEMES  = {"space", "galaxy", "witch", "magic", "mushroom", "coffee",
+                    "plant", "ocean", "mountain", "moon", "dark", "retro",
+                    "goblin", "cottage", "academia", "gothic", "kawaii"}
+        has_animal = any(w in _ANIMALS for w in words)
+        has_theme  = any(w in _THEMES  for w in words)
         if has_animal and has_theme:
-            score += 0.20  # "space cat", "witch fox" — POD gold
+            score += 0.20  # "space cat", "witch fox" — sells as sticker + shirt
 
-        # Gift / occasion keywords
-        if any(w in kw for w in ["gift", "birthday", "christmas", "lover"]):
-            score += 0.10
+        # Occupational gift (high purchase intent — people buy for colleagues)
+        _OCCUPATIONS = {"nurse", "teacher", "engineer", "firefighter", "doctor",
+                        "librarian", "veterinarian", "pharmacist", "dentist",
+                        "paramedic", "mechanic", "chef", "accountant"}
+        _GIFT_SIGNALS = {"gift", "appreciation", "life", "proud", "humor",
+                         "funny", "lover", "mom", "dad", "wife", "husband"}
+        has_job  = any(w in _OCCUPATIONS  for w in words)
+        has_gift = any(w in _GIFT_SIGNALS for w in words)
+        if has_job:
+            score += 0.15  # occupation alone is good
+        if has_job and has_gift:
+            score += 0.10  # "nurse funny" / "teacher gift" = purchase intent
+
+        # Seasonal boost — May/June 2026: graduation + Father's Day
+        import datetime as _dt_score
+        month = _dt_score.datetime.utcnow().month
+        if month in (5, 6):
+            seasonal_words = {"graduation", "graduate", "grad", "father",
+                              "dad", "fathers", "summer", "pride"}
+            if any(w in seasonal_words for w in words):
+                score += 0.12
+
+        # Identity keywords ("mom", "dad", "lover", "addict") — gift/self-buy
+        if any(w in kw for w in ["mom", "dad", "lover", "addict", "obsessed",
+                                  "life", "awareness", "pride"]):
+            score += 0.08
 
         # Cap at 0.95
         return min(score, 0.95)

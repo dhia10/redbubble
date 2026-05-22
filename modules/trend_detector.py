@@ -44,14 +44,63 @@ _HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# Evergreen seed niches always considered
+# Evergreen seed niches — proven Redbubble best-sellers, randomly sampled each run
+# Focus: identity-based, occupational gifts, compound aesthetics, and hobby niches
+# that have real commercial traction on print-on-demand platforms.
 _EVERGREEN_SEEDS: list[str] = [
-    "funny cat", "dog lover", "space astronomy", "hiking outdoors",
-    "mental health awareness", "witch aesthetic", "cottagecore",
-    "retro 80s", "music lover", "book reader", "plant parent",
-    "ocean waves", "mountain life", "nurse doctor", "teacher gift",
-    "engineer nerd", "gamer", "pizza lover", "coffee addict",
-    "sunflower", "butterfly nature", "dinosaur kids",
+    # ── Occupational gifts (proven top sellers on Redbubble) ──────────────
+    "nurse life funny", "teacher appreciation gift",
+    "engineer humor nerd", "firefighter proud", "paramedic emt gift",
+    "veterinarian animal lover", "librarian book lover",
+    "accountant funny", "dentist humor", "pharmacist gift",
+    "social worker proud", "police officer thin blue",
+    "chef cooking funny", "mechanic garage",
+
+    # ── Identity & pet owner (huge Redbubble category) ────────────────────
+    "cat mom gift", "dog dad gift", "plant parent funny",
+    "black cat witch", "golden retriever dog lover",
+    "siberian husky wolf", "corgi butt funny",
+    "axolotl cute kawaii", "frog goblincore",
+    "red panda cute", "capybara funny", "duck aesthetic",
+
+    # ── Compound aesthetics (sell as stickers + shirts) ───────────────────
+    "space cat astronaut", "witch cat moon",
+    "mushroom frog cottagecore", "fox dark academia",
+    "butterfly vintage botanical", "ghost kawaii cute",
+    "skeleton funny spooky", "raven gothic crow",
+
+    # ── Aesthetics & styles (strong sticker + art print market) ──────────
+    "dark academia library", "cottagecore mushroom forest",
+    "goblincore nature witch", "vaporwave retro 80s",
+    "botanical illustration floral", "art nouveau vintage",
+    "y2k aesthetic nostalgic", "coastal grandmother vibe",
+
+    # ── Hobby & sport identity ────────────────────────────────────────────
+    "hiking mountain adventure", "trail running athlete",
+    "cycling bike lover", "rock climbing outdoor",
+    "yoga meditation mindful", "fishing weekend hobby",
+    "gaming controller nerd", "chess strategy player",
+    "book reader introvert", "coffee addict morning",
+
+    # ── Mental health & motivation (growing Redbubble category) ──────────
+    "mental health awareness", "anxiety is a liar",
+    "adhd brain funny", "self care not selfish",
+    "therapy is cool", "be kind wildflower",
+
+    # ── Funny & relatable (sticker best-sellers) ─────────────────────────
+    "introvert home person", "sarcasm my love language",
+    "monday mood coffee", "adulting is hard funny",
+    "pizza is my love language", "nap queen resting",
+
+    # ── Nature motifs (art print + tapestry) ──────────────────────────────
+    "mushroom forest magical", "sunflower field bright",
+    "cherry blossom japan", "tropical monstera leaf",
+    "ocean wave surf calm", "mountain lake reflection",
+    "galaxy nebula cosmos", "moon phases mystical",
+
+    # ── Kids & family (steady gift category) ─────────────────────────────
+    "dinosaur roar kids", "unicorn rainbow magical",
+    "dragon fantasy cute", "mermaid ocean watercolor",
 ]
 
 # Seasonal niches (triggered by month)
@@ -60,8 +109,10 @@ _SEASONAL_NICHES: dict[int, list[str]] = {
     2:  ["valentines day love", "galentines"],
     3:  ["st patricks day", "spring garden"],
     4:  ["easter bunny", "earth day"],
-    5:  ["mothers day gift", "graduation"],
-    6:  ["pride month rainbow", "fathers day", "summer vibes"],
+    5:  ["mothers day gift", "graduation class of 2026", "graduate proud",
+          "teacher end of year gift"],
+    6:  ["pride month rainbow", "fathers day gift funny", "dad joke gift",
+          "summer vibes beach", "graduation summer"],
     7:  ["fourth of july", "summer beach"],
     8:  ["back to school", "late summer"],
     9:  ["fall autumn leaves", "harvest"],
@@ -126,7 +177,9 @@ class TrendDetector:
         # Always inject seasonal + evergreen seeds
         month = datetime.utcnow().month
         keywords.extend(_SEASONAL_NICHES.get(month, []))
-        keywords.extend(_EVERGREEN_SEEDS)
+        _shuffled_ev = list(_EVERGREEN_SEEDS)
+        import random as _rand_ev; _rand_ev.shuffle(_shuffled_ev)
+        keywords.extend(_shuffled_ev)
 
         # Deduplicate while preserving order, normalise
         seen: set[str] = set()

@@ -302,8 +302,9 @@ class RedbubbleUploader:
         """
         if self._context:
             if self._is_cdp:
-                # CDP mode: close only the tab we opened, leave the browser running.
-                # Save session BEFORE closing the page while the context is still live.
+                # CDP mode: PARK the tab at the upload URL instead of closing it.
+                # This means the next run finds a Redbubble tab already open and
+                # skips the Cloudflare challenge entirely.
                 try:
                     Path(self.SESSION_FILE).parent.mkdir(parents=True, exist_ok=True)
                     self._context.storage_state(path=self.SESSION_FILE)
@@ -311,7 +312,16 @@ class RedbubbleUploader:
                     logger.warning("Could not save session state: %s", exc)
                 try:
                     if self._page and not self._page.is_closed():
-                        self._page.close()
+                        # Navigate to upload URL — do NOT close the tab
+                        try:
+                            self._page.goto(
+                                self.UPLOAD_URL,
+                                wait_until="domcontentloaded",
+                                timeout=20_000,
+                            )
+                            logger.info("Tab parked at upload URL for next run.")
+                        except Exception:
+                            pass  # Keep tab alive even if navigation fails
                 except Exception:
                     pass
             else:
@@ -821,12 +831,23 @@ class RedbubbleUploader:
                 "CF redirect landed on %s — re-navigating to upload page…", page.url
             )
             try:
-                page.goto(self.UPLOAD_URL, wait_until="domcontentloaded", timeout=45_000)
+                # Use networkidle so React finishes rendering before we probe the DOM
+                page.goto(self.UPLOAD_URL, wait_until="networkidle", timeout=45_000)
             except Exception:
-                pass
-            self._human_delay(2.0, 3.0)
+                try:
+                    page.goto(self.UPLOAD_URL, wait_until="domcontentloaded", timeout=30_000)
+                except Exception:
+                    pass
+            self._human_delay(3.0, 5.0)
             # Handle any second CF challenge after the re-navigation
             self._wait_for_cloudflare(timeout_ms=60_000)
+        else:
+            # Already on upload URL — still give React time to render
+            self._human_delay(2.0, 3.5)
+            try:
+                page.wait_for_load_state("networkidle", timeout=20_000)
+            except Exception:
+                pass
 
         # Dismiss any cookie/consent banner that may block the upload form
         self._dismiss_cookie_banner()
@@ -838,48 +859,99 @@ class RedbubbleUploader:
         logger.info("Looking for 'Upload new work' button on landing page…")
         upload_new_clicked = False
 
-        # Strategy 1: wait up to 15 s for the button to appear (page can be slow),
-        # then click via JavaScript to avoid timing/visibility quirks.
-        try:
-            page.wait_for_function(
-                """() => {
-                    const all = Array.from(document.querySelectorAll('a, button'));
-                    return all.some(el => /upload new work/i.test(el.textContent || ''));
-                }""",
-                timeout=15_000,
-            )
-            clicked = page.evaluate("""() => {
-                // Cast a wide net: any element whose own text or a descendant's
-                // text contains "upload new work" (case-insensitive).
-                const all = Array.from(document.querySelectorAll('a, button, div, span, li'));
-                const btn = all.find(el => /upload new work/i.test((el.textContent || '').trim()));
-                if (btn) { btn.dispatchEvent(new MouseEvent('click', {bubbles: true})); return true; }
-                return false;
-            }""")
-            if clicked:
-                logger.info("Clicked 'Upload new work' via JS (MouseEvent)")
-                upload_new_clicked = True
-                self._human_delay(1.5, 2.5)
-        except Exception:
-            pass
+        def _try_click_upload_button() -> bool:
+            """Try every known strategy to click the upload button. Returns True if clicked."""
+            # JS strategy — cast a wide net over ALL elements
+            try:
+                page.wait_for_function(
+                    """() => {
+                        const all = Array.from(document.querySelectorAll('*'));
+                        return all.some(el => /upload new work/i.test(
+                            (el.textContent || '').trim().slice(0, 60)
+                        ));
+                    }""",
+                    timeout=12_000,
+                )
+                clicked = page.evaluate("""() => {
+                    const all = Array.from(document.querySelectorAll(
+                        'a, button, div[role], span[role], li, [class*="upload"]'
+                    ));
+                    // Prefer exact matches first
+                    for (const el of all) {
+                        const txt = (el.textContent || '').trim();
+                        if (/^upload new work$/i.test(txt)) {
+                            el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+                            return 'exact:' + txt;
+                        }
+                    }
+                    // Partial match fallback
+                    for (const el of all) {
+                        const txt = (el.textContent || '').slice(0, 60);
+                        if (/upload new work/i.test(txt)) {
+                            el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+                            return 'partial:' + txt.trim().slice(0, 30);
+                        }
+                    }
+                    return null;
+                }""")
+                if clicked:
+                    logger.info("Clicked 'Upload new work' via JS (%s)", clicked)
+                    return True
+            except Exception:
+                pass
 
-        # Strategy 2: standard Playwright selectors as fallback
-        if not upload_new_clicked:
+            # Playwright locator fallback
             for sel in [
                 'text="Upload new work"',
                 ':has-text("Upload new work")',
+                'button:has-text("Upload")',
                 'a:has-text("Upload")',
+                '[data-testid*="upload"]',
+                '[class*="UploadNewWork"]',
+                '[class*="upload-new"]',
             ]:
                 try:
                     btn = page.locator(sel).first
-                    if btn.count() > 0 and btn.is_visible(timeout=3_000):
-                        btn.click(force=True, timeout=10_000)
-                        logger.info("Clicked 'Upload new work' (%s)", sel)
-                        upload_new_clicked = True
-                        self._human_delay(1.5, 2.5)
-                        break
+                    if btn.count() > 0 and btn.is_visible(timeout=2_000):
+                        btn.click(force=True, timeout=8_000)
+                        logger.info("Clicked upload button (%s)", sel)
+                        return True
                 except Exception:
                     continue
+            return False
+
+        # Attempt 1: click the button normally
+        if _try_click_upload_button():
+            upload_new_clicked = True
+            self._human_delay(2.0, 3.0)
+
+        # If button not found AND no file input, try a page reload
+        if not upload_new_clicked:
+            file_count = page.locator('input[type="file"]').count()
+            if file_count == 0:
+                logger.info("Upload button not found, no file input — reloading page…")
+                try:
+                    page.reload(wait_until="domcontentloaded", timeout=30_000)
+                    self._human_delay(3.0, 5.0)
+                    self._wait_for_cloudflare(timeout_ms=60_000)
+                    # Try button again after reload
+                    if _try_click_upload_button():
+                        upload_new_clicked = True
+                        self._human_delay(2.0, 3.0)
+                except Exception as reload_exc:
+                    logger.warning("Reload failed: %s", reload_exc)
+
+        if not upload_new_clicked:
+            # Page may already show the full upload form — continue anyway
+            logger.info("'Upload new work' button not found — checking if form already visible.")
+            # But log what's actually on the page for debugging
+            try:
+                snippet = page.evaluate(
+                    "() => (document.body?.innerText || '').slice(0, 300)"
+                )
+                logger.info("Page text snippet: %s", snippet.replace("\n", " ")[:200])
+            except Exception:
+                pass
 
         if not upload_new_clicked:
             # Either the page already shows the upload form (no chooser)
