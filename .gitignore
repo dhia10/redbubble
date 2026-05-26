@@ -21,6 +21,9 @@ data/exports/
 
 # Logs
 logs/
+data/opera_debug_profile/
+data/chrome_profile/
+.fuse_hidden*
 
 # OS
 .DS_Store

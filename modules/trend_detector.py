@@ -44,81 +44,104 @@ _HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# Evergreen seed niches — proven Redbubble best-sellers, randomly sampled each run
-# Focus: identity-based, occupational gifts, compound aesthetics, and hobby niches
-# that have real commercial traction on print-on-demand platforms.
+# Evergreen seed niches — matched to the brand's Pinterest aesthetic:
+# high-contrast anime / cyberpunk / techwear / solarpunk / dieselpunk.
+# These convert on Redbubble as posters, t-shirts, stickers and phone cases.
 _EVERGREEN_SEEDS: list[str] = [
-    # ── Occupational gifts (proven top sellers on Redbubble) ──────────────
-    "nurse life funny", "teacher appreciation gift",
-    "engineer humor nerd", "firefighter proud", "paramedic emt gift",
-    "veterinarian animal lover", "librarian book lover",
-    "accountant funny", "dentist humor", "pharmacist gift",
-    "social worker proud", "police officer thin blue",
-    "chef cooking funny", "mechanic garage",
+    # ── Cyberpunk / Techwear (biggest board — NEON 1.1k pins) ────────────
+    "cyberpunk anime girl techwear",
+    "high contrast cyberpunk neon art",
+    "dark futuristic anime warrior",
+    "neon city cyberpunk street art",
+    "techwear aesthetic dark anime",
+    "cyberpunk dystopian poster art",
+    "glitch art digital girl",
+    "cyber aesthetic neon anime",
+    "anime girl high contrast black",
+    "futuristic sci fi anime art",
+    "cyberpunk hacker girl neon",
+    "dark cyberpunk cityscape anime",
+    "neon samurai cyberpunk art",
+    "android girl cyberpunk art",
+    "mecha pilot anime techwear",
 
-    # ── Identity & pet owner (huge Redbubble category) ────────────────────
-    "cat mom gift", "dog dad gift", "plant parent funny",
-    "black cat witch", "golden retriever dog lover",
-    "siberian husky wolf", "corgi butt funny",
-    "axolotl cute kawaii", "frog goblincore",
-    "red panda cute", "capybara funny", "duck aesthetic",
+    # ── Solarpunk (JUNO board) ────────────────────────────────────────────
+    "solarpunk anime girl nature",
+    "bioluminescent fantasy anime art",
+    "nature tech fusion solarpunk",
+    "solarpunk hopeful future girl",
+    "green energy anime aesthetic",
+    "solarpunk witch garden glowing",
+    "sunpunk anime floral tech",
 
-    # ── Compound aesthetics (sell as stickers + shirts) ───────────────────
-    "space cat astronaut", "witch cat moon",
-    "mushroom frog cottagecore", "fox dark academia",
-    "butterfly vintage botanical", "ghost kawaii cute",
-    "skeleton funny spooky", "raven gothic crow",
+    # ── Dieselpunk (KAI board) ────────────────────────────────────────────
+    "dieselpunk anime mechanic girl",
+    "industrial gothic anime art",
+    "steampunk anime dark aesthetic",
+    "dieselpunk warrior girl art",
+    "retro futurism anime poster",
+    "dark steampunk gear girl",
 
-    # ── Aesthetics & styles (strong sticker + art print market) ──────────
-    "dark academia library", "cottagecore mushroom forest",
-    "goblincore nature witch", "vaporwave retro 80s",
-    "botanical illustration floral", "art nouveau vintage",
-    "y2k aesthetic nostalgic", "coastal grandmother vibe",
+    # ── Bold Graphic / Grunge ─────────────────────────────────────────────
+    "bold graphic grunge design art",
+    "high contrast black white drip",
+    "street art urban gothic print",
+    "psychedelic grunge anime print",
+    "dark drip art horror graphic",
+    "grunge skull anime bold",
 
-    # ── Hobby & sport identity ────────────────────────────────────────────
-    "hiking mountain adventure", "trail running athlete",
-    "cycling bike lover", "rock climbing outdoor",
-    "yoga meditation mindful", "fishing weekend hobby",
-    "gaming controller nerd", "chess strategy player",
-    "book reader introvert", "coffee addict morning",
+    # ── Cyberpop / Harajuku ───────────────────────────────────────────────
+    "cyberpop colorful anime girl",
+    "harajuku neon fashion art",
+    "pop art anime bold color",
+    "decora kawaii cyber aesthetic",
+    "y2k cyber anime girl colorful",
 
-    # ── Mental health & motivation (growing Redbubble category) ──────────
-    "mental health awareness", "anxiety is a liar",
-    "adhd brain funny", "self care not selfish",
-    "therapy is cool", "be kind wildflower",
+    # ── Vaporwave / Synthwave ─────────────────────────────────────────────
+    "vaporwave retro aesthetic art",
+    "synthwave neon sunset poster",
+    "retrowave anime girl 80s neon",
+    "lo fi aesthetic dark anime",
+    "outrun aesthetic neon grid art",
 
-    # ── Funny & relatable (sticker best-sellers) ─────────────────────────
-    "introvert home person", "sarcasm my love language",
-    "monday mood coffee", "adulting is hard funny",
-    "pizza is my love language", "nap queen resting",
+    # ── Dystopian / Post-Apocalyptic ──────────────────────────────────────
+    "dystopian anime poster art",
+    "post apocalyptic warrior girl",
+    "cyberpunk wasteland dark art",
+    "dark future city anime poster",
 
-    # ── Nature motifs (art print + tapestry) ──────────────────────────────
-    "mushroom forest magical", "sunflower field bright",
-    "cherry blossom japan", "tropical monstera leaf",
-    "ocean wave surf calm", "mountain lake reflection",
-    "galaxy nebula cosmos", "moon phases mystical",
+    # ── Dark / Gothic Anime ───────────────────────────────────────────────
+    "dark academia gothic anime art",
+    "gothic lolita dark aesthetic",
+    "dark fantasy anime girl sword",
+    "witch necromancer anime art",
+    "dark magical girl transformation",
 
-    # ── Kids & family (steady gift category) ─────────────────────────────
-    "dinosaur roar kids", "unicorn rainbow magical",
-    "dragon fantasy cute", "mermaid ocean watercolor",
+    # ── Anime Character / Portrait ────────────────────────────────────────
+    "anime portrait high contrast",
+    "manga art bold lines print",
+    "anime girl sword warrior art",
+    "anime character design poster",
+    "dark anime girl eyes glow",
 ]
 
 # Seasonal niches (triggered by month)
 _SEASONAL_NICHES: dict[int, list[str]] = {
-    1:  ["new year motivation", "winter cozy"],
-    2:  ["valentines day love", "galentines"],
-    3:  ["st patricks day", "spring garden"],
-    4:  ["easter bunny", "earth day"],
-    5:  ["mothers day gift", "graduation class of 2026", "graduate proud",
-          "teacher end of year gift"],
-    6:  ["pride month rainbow", "fathers day gift funny", "dad joke gift",
-          "summer vibes beach", "graduation summer"],
-    7:  ["fourth of july", "summer beach"],
-    8:  ["back to school", "late summer"],
-    9:  ["fall autumn leaves", "harvest"],
-    10: ["halloween spooky", "october"],
-    11: ["thanksgiving", "fall cozy"],
-    12: ["christmas holiday", "winter wonderland"],
+    1:  ["dark winter anime aesthetic", "new year cyberpunk countdown"],
+    2:  ["dark romance anime valentines", "gothic love aesthetic"],
+    3:  ["spring solarpunk bloom", "neon cherry blossom anime"],
+    4:  ["cyberpunk earth day nature tech", "solarpunk spring anime"],
+    5:  ["graduation anime warrior", "dark academia graduation"],
+    6:  ["pride neon anime art", "summer neon cyberpunk beach",
+         "pride rainbow cyberpunk", "graduation cyberpunk poster"],
+    7:  ["summer vaporwave neon", "retro synthwave summer art"],
+    8:  ["dark back to school anime", "cyberpunk autumn aesthetic"],
+    9:  ["dark autumn gothic anime", "fall cyberpunk neon leaves"],
+    10: ["halloween dark anime art", "gothic horror cyberpunk",
+         "dark witch anime halloween", "horror aesthetic anime"],
+    11: ["dark cozy anime fall", "gothic thanksgiving aesthetic"],
+    12: ["cyberpunk christmas neon", "dark holiday anime art",
+         "gothic winter solstice anime"],
 }
 
 

@@ -4,17 +4,17 @@ image_generator.py  (FREE TIER EDITION)
 Generates print-ready artwork using Leonardo AI free tier.
 
 Free tier budget: ~150 tokens/day
-Token cost: ~12 tokens per 768×768 image  →  ~12 images/day safely
+Token cost: ~12 tokens per 768x768 image  ->  ~12 images/day safely
 
 Pipeline:
 1.  Submit generation job to Leonardo REST API
 2.  Poll for completion (max 90 seconds)
 3.  Download the best image to disk
-4.  Upscale / pad to 4500×5400 px using Pillow (free, local)
+4.  Upscale / pad to 4500x5400 px using Pillow (free, local)
 5.  Return ImageResult with all metadata
 
 Fallback chain (all free):
-  Leonardo AI  →  Placeholder generator (solid-colour + text label)
+  Leonardo AI  ->  Placeholder generator (solid-colour + text label)
 
 The placeholder is used when Leonardo quota is exhausted or unreachable,
 so the pipeline never hard-fails — you just upload a placeholder and
@@ -289,7 +289,7 @@ class ImageGenerator:
                 _img_rgba = _img.convert("RGBA")
                 _img_rgba.save(str(out_path), format="PNG", optimize=False)
             saved_size = out_path.stat().st_size
-            logger.info("Image downloaded → RGBA PNG: %s (%d bytes, orig %d bytes)",
+            logger.info("Image downloaded -> RGBA PNG: %s (%d bytes, orig %d bytes)",
                         out_path, saved_size, len(raw_data))
             return ImageResult(
                 success=True,
@@ -376,12 +376,12 @@ class ImageGenerator:
 
     def _upscale_to_print(self, result: ImageResult) -> ImageResult:
         """
-        Upscale the generated image to TARGET_WIDTH × TARGET_HEIGHT using
+        Upscale the generated image to TARGET_WIDTH x TARGET_HEIGHT using
         high-quality Lanczos resampling, then save as 300-DPI transparent PNG.
 
         Key fix: PIL's thumbnail() only SHRINKS — it never enlarges.
         We use resize() with the calculated scale factor so the artwork
-        actually fills the canvas (e.g. 768px → 4500px) instead of staying
+        actually fills the canvas (e.g. 768px -> 4500px) instead of staying
         tiny in the center of a transparent canvas.
         """
         try:
@@ -438,13 +438,13 @@ class ImageGenerator:
             result.format          = "PNG"
             result.is_valid        = True
             result.validation_msg  = (
-                f"Upscaled {orig_w}×{orig_h} → "
-                f"{self.target_width}×{self.target_height} "
+                f"Upscaled {orig_w}x{orig_h} -> "
+                f"{self.target_width}x{self.target_height} "
                 f"(scale={scale:.2f}x, 300 DPI)"
             )
             size_mb = result.file_size_bytes / 1024 / 1024
             logger.info(
-                "Upscaled %dx%d → %dx%d (%.2fx) @ 300 DPI | %.1f MB | %s",
+                "Upscaled %dx%d -> %dx%d (%.2fx) @ 300 DPI | %.1f MB | %s",
                 orig_w, orig_h,
                 self.target_width, self.target_height,
                 scale, size_mb, result.file_path,

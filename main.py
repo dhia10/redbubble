@@ -107,12 +107,13 @@ class Pipeline:
         self.config  = config
         self.log     = logging.getLogger("Pipeline")
 
-        from modules.database_manager  import DatabaseManager
-        from modules.trend_detector    import TrendDetector
-        from modules.niche_scorer      import NicheScorer
-        from modules.image_generator   import ImageGenerator
+        from modules.database_manager   import DatabaseManager
+        from modules.trend_detector     import TrendDetector
+        from modules.niche_scorer       import NicheScorer
+        from modules.image_generator    import ImageGenerator
         from modules.redbubble_uploader import RedbubbleUploader
-        from modules.analytics         import Analytics
+        from modules.analytics          import Analytics
+        from modules.pinterest_publisher import PinterestPublisher
 
         db_cfg       = config.get("database",         {})
         trend_cfg    = config.get("trend_detection",  {})
@@ -163,6 +164,26 @@ class Pipeline:
 
         self.analytics = Analytics(db_manager=self.db)
 
+        # ── Pinterest publisher (optional — best-effort, never blocks pipeline) ──
+        pt_cfg = config.get("pinterest", {})
+        pinterest_enabled = pt_cfg.get("enabled", True)
+        if pinterest_enabled:
+            self.pinterest = PinterestPublisher(
+                board_name=pt_cfg.get("board_name", "Redbubble Designs"),
+                cdp_port=pt_cfg.get("cdp_port", 9222),
+                timeout_ms=pt_cfg.get("timeout_ms", 60_000),
+                screenshot_dir=rb_cfg.get(
+                    "screenshot_dir", "data/exports/screenshots"
+                ),
+            )
+            self.log.info(
+                "Pinterest publisher enabled — board: '%s'",
+                pt_cfg.get("board_name", "Redbubble Designs"),
+            )
+        else:
+            self.pinterest = None
+            self.log.info("Pinterest publisher disabled (pinterest.enabled=false).")
+
         self.niches_per_run  = pipe_cfg.get("niches_per_run", 2)
         self.ideas_per_niche = pipe_cfg.get("ideas_per_niche", 2)
         self.dry_run         = pipe_cfg.get("dry_run", False)
@@ -180,6 +201,7 @@ class Pipeline:
             "ideas_generated":  0,
             "images_created":   0,
             "products_uploaded": 0,
+            "pins_published":   0,
             "errors": [],
         }
 
@@ -426,6 +448,39 @@ class Pipeline:
             self.db.update_idea_status(idea_id, "uploaded")
             stats["products_uploaded"] += 1
             self.log.info("  ✅ Published: %s", upload_result.product_url)
+
+            # ── Pinterest: pin the design to drive traffic back to Redbubble ──
+            if self.pinterest and upload_result.product_url:
+                self.log.info("  📌 Pinning to Pinterest…")
+                try:
+                    pin_result = self.pinterest.publish_pin(
+                        image_path=img_result.file_path,
+                        title=seo.get("title", title),
+                        description=seo.get("description", ""),
+                        tags=seo.get("tags", []),
+                        redbubble_url=upload_result.product_url,
+                        niche=niche,
+                    )
+                    if pin_result.success:
+                        stats["pins_published"] += 1
+                        self.log.info(
+                            "  📌 Pinterest pin published: %s",
+                            pin_result.pin_url[:80],
+                        )
+                    else:
+                        self.log.warning(
+                            "  📌 Pinterest pin failed (non-fatal): %s",
+                            pin_result.error,
+                        )
+                        stats["errors"].append(
+                            f"Pinterest/p{product_id}: {pin_result.error}"
+                        )
+                except Exception as pin_exc:
+                    # Pinterest errors NEVER crash the main pipeline
+                    self.log.warning(
+                        "  📌 Pinterest publish exception (non-fatal): %s", pin_exc
+                    )
+                    stats["errors"].append(f"Pinterest/p{product_id}: {pin_exc}")
         else:
             self.db.update_product_failed(product_id)
             self.db.log_upload(
@@ -455,6 +510,7 @@ class Pipeline:
         self.log.info("  %-26s : %s", "Ideas generated",    stats["ideas_generated"])
         self.log.info("  %-26s : %s", "Images created",     stats["images_created"])
         self.log.info("  %-26s : %s", "Products uploaded",  stats["products_uploaded"])
+        self.log.info("  %-26s : %s", "Pinterest pins",     stats["pins_published"])
         if stats["errors"]:
             self.log.warning("  Errors (%d):", len(stats["errors"]))
             for e in stats["errors"]:
@@ -617,12 +673,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Redbubble Automation — Free Tier")
     parser.add_argument("--run-now",    action="store_true",
                         help="Run the pipeline once immediately")
-    parser.add_argument("--dashboard",  action="store_true",
+    parser.add_argument("--dashboard",        action="store_true",
                         help="Launch the Streamlit dashboard")
-    parser.add_argument("--dry-run",    action="store_true",
+    parser.add_argument("--dry-run",          action="store_true",
                         help="Skip actual Redbubble upload")
-    parser.add_argument("--test-image", action="store_true",
+    parser.add_argument("--test-image",       action="store_true",
                         help="Test Leonardo AI connection and token balance")
+    parser.add_argument("--setup-pinterest",  action="store_true",
+                        help="Create all themed Pinterest boards (run once, before first pipeline run)")
     args = parser.parse_args()
 
     config = _load_config()
@@ -653,6 +711,32 @@ def main() -> None:
         print(f"Size:   {result.width_px}×{result.height_px}")
         if result.error:
             print(f"Error:  {result.error}")
+        return
+
+    if args.setup_pinterest:
+        from modules.pinterest_publisher import PinterestPublisher
+        pt_cfg = config.get("pinterest", {})
+        publisher = PinterestPublisher(
+            cdp_port=pt_cfg.get("cdp_port", 9222),
+            timeout_ms=pt_cfg.get("timeout_ms", 60_000),
+        )
+        print("\n" + "=" * 50)
+        print("  PINTEREST BOARD SETUP")
+        print("  Creating all themed boards…")
+        print("=" * 50)
+        boards = PinterestPublisher.all_board_names()
+        print(f"\n  Boards to create ({len(boards)}):")
+        for name, _ in boards:
+            print(f"    • {name}")
+        print("\n  Make sure you are logged into Pinterest in Opera GX.")
+        print("  Running setup now…\n")
+        results = publisher.setup_boards()
+        print("\n" + "=" * 50)
+        print("  RESULTS:")
+        for name, status in results.items():
+            icon = "✅" if status in ("created", "exists") else "❌"
+            print(f"  {icon}  {name}  [{status}]")
+        print("=" * 50 + "\n")
         return
 
     if args.dashboard:

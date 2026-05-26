@@ -28,85 +28,92 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 
 _IDEA_TEMPLATES: list[tuple[str, str, str]] = [
-    # Animals & Pets
-    ("{adj} {niche} with galaxy fur floating in space",
-     "Cosmic wonder", "t-shirt,poster,sticker"),
-    ("{adj} {niche} wearing a tiny wizard hat in a magical forest",
-     "Whimsy and magic", "sticker,mug,t-shirt"),
-    ("Watercolour portrait of a {niche} surrounded by wildflowers",
-     "Soft beauty", "poster,mug,notebook"),
-    ("{adj} {niche} reading a book under a mushroom",
-     "Cosy charm", "sticker,t-shirt,mug"),
-    ("Geometric low-poly {niche} on a mountain landscape",
-     "Modern minimalism", "poster,t-shirt,phone-case"),
-    ("{niche} astronaut floating among stars and planets",
-     "Adventure and wonder", "t-shirt,hoodie,poster"),
-    ("Vintage retro {niche} in 80s neon colours",
-     "Nostalgic fun", "t-shirt,sticker,phone-case"),
-    ("{adj} {niche} surrounded by tropical leaves and flowers",
-     "Tropical joy", "tote-bag,poster,mug"),
-    ("Kawaii chibi {niche} with big sparkly eyes",
-     "Cute and sweet", "sticker,t-shirt,mug"),
-    ("Steampunk {niche} with brass gears and goggles",
-     "Industrial fantasy", "t-shirt,poster,sticker"),
-    # Nature / Places
-    ("Minimalist line art {niche} on a white background",
-     "Clean elegance", "poster,t-shirt,notebook"),
-    ("{adj} {niche} scene at golden hour sunset",
-     "Peaceful warmth", "poster,mug,phone-case"),
-    ("Abstract watercolour splash forming a {niche} silhouette",
-     "Artistic freedom", "poster,t-shirt,notebook"),
-    ("Botanical illustration of {niche} with latin labels",
-     "Scientific beauty", "poster,notebook,tote-bag"),
-    ("Night sky {niche} with aurora borealis background",
-     "Majestic nature", "poster,t-shirt,phone-case"),
-    # Hobbies / Lifestyle
-    ("Retro badge / emblem celebrating {niche} culture",
-     "Community pride", "t-shirt,sticker,mug"),
-    ("Funny {niche} pun with cartoon illustration",
-     "Humour and joy", "t-shirt,sticker,mug"),
-    ("{adj} {niche} mandala pattern",
-     "Meditative harmony", "poster,t-shirt,phone-case"),
-    ("Hand-lettered motivational quote about {niche}",
-     "Inspiration", "poster,mug,notebook"),
-    ("Flat-design icons pack celebrating {niche} lifestyle",
-     "Modern fun", "sticker,t-shirt,tote-bag"),
-    # Seasons / Occasions
-    ("Cosy autumn {niche} scene with falling leaves and candles",
-     "Warm nostalgia", "mug,poster,t-shirt"),
-    ("Winter {niche} with snowflakes and fairy lights",
-     "Festive magic", "mug,poster,sticker"),
-    ("Spring {niche} with cherry blossoms and soft pastels",
-     "Fresh renewal", "poster,t-shirt,notebook"),
-    ("Summer {niche} with sun, waves and tropical vibes",
-     "Carefree energy", "t-shirt,tote-bag,phone-case"),
-    # Pop-culture safe / retro
-    ("Pixel art 8-bit style {niche} character",
-     "Retro gaming fun", "t-shirt,sticker,poster"),
-    ("Art Deco {niche} geometric illustration in gold and black",
-     "Timeless luxury", "poster,notebook,phone-case"),
-    ("Psychedelic 70s {niche} poster with groovy typography",
-     "Retro freedom", "poster,t-shirt,sticker"),
+    # ── Cyberpunk / Techwear ─────────────────────────────────────────────
+    ("{adj} {niche} girl in neon-lit cyberpunk alley, techwear jacket",
+     "Electric rebellion", "t-shirt,poster,phone-case"),
+    ("High contrast {niche} android warrior, glowing circuit tattoos",
+     "Digital power", "poster,t-shirt,sticker"),
+    ("{niche} hacker in dark server room, neon reflections on visor",
+     "Shadowed genius", "t-shirt,poster,phone-case"),
+    ("Cyberpunk {niche} skyline, towering holograms and rain-slicked streets",
+     "Urban dystopia", "poster,t-shirt,phone-case"),
+    ("{adj} {niche} samurai with neon katana in ruined megacity",
+     "Neon bushido", "t-shirt,poster,sticker"),
+    ("Mecha pilot {niche} portrait, cockpit glowing, intense gaze",
+     "Iron will", "poster,t-shirt,phone-case"),
+    ("Glitch art {niche} portrait, digital corruption on dark background",
+     "Digital fracture", "poster,sticker,phone-case"),
+
+    # ── Solarpunk ────────────────────────────────────────────────────────
+    ("{adj} {niche} girl surrounded by bioluminescent vines and solar panels",
+     "Radiant future", "poster,t-shirt,phone-case"),
+    ("Solarpunk {niche} village built in giant living trees, golden light",
+     "Hopeful utopia", "poster,t-shirt,sticker"),
+    ("{niche} witch tending a glowing garden powered by crystal energy",
+     "Nature and magic", "poster,t-shirt,phone-case"),
+
+    # ── Dieselpunk ───────────────────────────────────────────────────────
+    ("Dieselpunk {niche} mechanic girl, grease-stained overalls, amber spotlight",
+     "Industrial grit", "t-shirt,poster,sticker"),
+    ("{adj} {niche} pilot in retro-futuristic cockpit, art deco gauges",
+     "Retro iron sky", "poster,t-shirt,phone-case"),
+    ("Dark dieselpunk {niche} city, towering smokestacks and brass machinery",
+     "Smoky grandeur", "poster,t-shirt,sticker"),
+
+    # ── Vaporwave / Synthwave ────────────────────────────────────────────
+    ("Vaporwave {niche} portrait, pink and cyan grid, retro neon sunset",
+     "Nostalgic neon", "poster,t-shirt,phone-case"),
+    ("Synthwave {niche} car chase at neon sunset, 80s outrun aesthetic",
+     "Retrowave rush", "poster,t-shirt,sticker"),
+    ("{adj} {niche} floating in vaporwave space, pastel grid and glitch",
+     "Soft retro dream", "poster,phone-case,sticker"),
+
+    # ── Dark / Gothic Anime ──────────────────────────────────────────────
+    ("Gothic {niche} girl with dark wings in moonlit graveyard",
+     "Beautiful darkness", "poster,t-shirt,phone-case"),
+    ("{adj} {niche} witch casting spell, dark magic swirling around her",
+     "Arcane power", "poster,t-shirt,sticker"),
+    ("Dark fantasy {niche} warrior, obsidian armour and glowing runes",
+     "Shadow strength", "t-shirt,poster,phone-case"),
+    ("Cursed {niche} with dripping black roses and shattered mirrors",
+     "Dark elegance", "poster,sticker,phone-case"),
+
+    # ── Bold Graphic / Grunge ────────────────────────────────────────────
+    ("High contrast {niche} portrait, stark black and white bold lines",
+     "Raw graphic power", "poster,t-shirt,sticker"),
+    ("Grunge {niche} poster, distressed texture, dripping ink, urban decay",
+     "Street raw energy", "poster,t-shirt,sticker"),
+    ("Bold {niche} face split between neon halves, graphic design impact",
+     "Dual nature", "t-shirt,poster,phone-case"),
+
+    # ── Cyberpop / Harajuku ──────────────────────────────────────────────
+    ("Harajuku {niche} girl in explosion of neon colours and cute symbols",
+     "Chaotic joy", "t-shirt,sticker,phone-case"),
+    ("Cyberpop {niche} with oversized accessories and candy neon palette",
+     "Sugar and circuits", "t-shirt,sticker,poster"),
+    ("Y2K {adj} {niche} aesthetic, chrome text and bubblegum cyber outfits",
+     "Millennium nostalgia", "t-shirt,phone-case,sticker"),
 ]
 
 _ADJECTIVES: list[str] = [
-    "magical", "mystical", "adorable", "majestic", "whimsical",
-    "celestial", "serene", "vibrant", "enchanted", "dreamy",
-    "cosmic", "ancient", "tiny", "fierce", "fluffy",
-    "glowing", "ethereal", "radiant", "mysterious", "playful",
+    "fierce", "glowing", "neon", "shadowed", "electric",
+    "ethereal", "shattered", "radiant", "corrupted", "blazing",
+    "crystalline", "dark", "luminous", "cursed", "chrome",
+    "fractured", "spectral", "defiant", "arcane", "vivid",
 ]
 
+# Cyberpunk / anime colour palettes — high contrast is the brand identity
 _COLORS: list[list[str]] = [
-    ["deep purple", "midnight blue", "gold", "white"],
-    ["coral pink", "sky blue", "cream", "mint green"],
-    ["forest green", "earth brown", "warm beige", "terracotta"],
-    ["electric blue", "hot pink", "neon yellow", "black"],
-    ["dusty rose", "sage green", "lavender", "ivory"],
-    ["burnt orange", "teal", "sand", "deep burgundy"],
-    ["navy blue", "silver", "light grey", "white"],
-    ["sunshine yellow", "cobalt blue", "red", "white"],
-    ["soft peach", "lilac", "mint", "light gold"],
-    ["charcoal", "forest green", "cream", "rust orange"],
+    ["neon pink", "electric cyan", "deep black", "white"],
+    ["neon green", "midnight blue", "silver", "dark purple"],
+    ["hot magenta", "acid yellow", "charcoal black", "white"],
+    ["electric orange", "dark teal", "black", "pale gold"],
+    ["deep purple", "neon cyan", "white", "dark grey"],
+    ["vivid red", "neon blue", "black", "chrome silver"],
+    ["bioluminescent green", "dark navy", "gold", "white"],
+    ["amber", "rust orange", "dark brown", "ivory"],          # dieselpunk
+    ["pastel pink", "lavender", "pale cyan", "white"],        # vaporwave
+    ["hot pink", "lime green", "white", "black"],             # cyberpop
 ]
 
 _PRODUCTS: list[list[str]] = [
@@ -123,18 +130,34 @@ _PRODUCTS: list[list[str]] = [
 # ---------------------------------------------------------------------------
 
 _PROMPT_STYLES: list[str] = [
-    "flat vector illustration, clean lines, bold colours, digital art",
-    "watercolour illustration, soft brush strokes, dreamy atmosphere",
-    "kawaii chibi style, cute rounded shapes, pastel palette",
-    "vintage retro poster art, halftone texture, limited colour palette",
-    "geometric low-poly art, sharp facets, modern minimalism",
-    "detailed pen-and-ink illustration with watercolour wash",
-    "sticker art style, thick black outline, vibrant colours, white background",
-    "art nouveau illustration, ornate borders, flowing organic lines",
-    "pixel art, 8-bit retro game style, clean pixel grid",
-    "hand-drawn sketch style, pencil texture, charming imperfections",
-    "bold graphic design, strong contrast, silhouette art",
-    "oil painting style, rich texture, impressionist colour mixing",
+    # Core brand style — high contrast anime / cyberpunk
+    ("high contrast anime illustration, bold neon outlines on deep black background, "
+     "cyberpunk techwear aesthetic, sharp detailed linework, magazine editorial quality"),
+    ("dark cyberpunk digital painting, neon-lit atmosphere, cinematic lighting, "
+     "anime-influenced character design, ultra-detailed, dramatic shadows"),
+    ("bold graphic anime poster style, extreme contrast black and white with neon accents, "
+     "strong silhouette, professional print quality"),
+    # Solarpunk variant
+    ("solarpunk illustration, vibrant greens and warm golds, "
+     "bioluminescent plants, hopeful atmosphere, detailed anime style, "
+     "nature meets technology aesthetic"),
+    # Dieselpunk variant
+    ("dieselpunk illustration, amber and rust palette, industrial grit, "
+     "art deco influence, detailed mechanical elements, dramatic chiaroscuro lighting"),
+    # Vaporwave / synthwave
+    ("synthwave retro poster art, neon pink and cyan gradient sky, "
+     "80s outrun grid, anime character, high contrast, glowing neon lines"),
+    ("vaporwave aesthetic, pastel neon palette, retro-futuristic, "
+     "glitch effects, anime style, dreamy yet high contrast"),
+    # Dark gothic anime
+    ("dark fantasy anime illustration, gothic atmosphere, deep shadows, "
+     "dramatic lighting, intricate dark details, professional concept art quality"),
+    # Grunge graphic
+    ("bold grunge graphic design, distressed ink textures, urban street art aesthetic, "
+     "extreme contrast, black and white with vivid colour pop"),
+    # Cyberpop / harajuku
+    ("cyberpop anime style, explosive neon colour palette, harajuku fashion, "
+     "cute yet edgy, thick bold outlines, sticker-art quality"),
 ]
 
 _PROMPT_QUALITY: str = (
@@ -155,88 +178,97 @@ _PROMPT_NEGATIVE: str = (
 # ---------------------------------------------------------------------------
 
 _TITLE_TEMPLATES: list[str] = [
-    "{niche_title} Gift | {adj_title} {niche_title} Design",
-    "{adj_title} {niche_title} Art Print | {niche_title} Lover Gift",
-    "{niche_title} Sticker | Funny {niche_title} Fan",
-    "{niche_title} Poster | {adj_title} {niche_title} Wall Art",
-    "Cute {niche_title} | {adj_title} {niche_title} T-Shirt Design",
-    "{niche_title} Fan Gift | {adj_title} {niche_title} Illustration",
-    "{adj_title} {niche_title} Mug Design | {niche_title} Lover",
-    "Funny {niche_title} | {niche_title} Humor Print",
-    "{niche_title} Art | Minimalist {niche_title} Design",
-    "{adj_title} {niche_title} | {niche_title} Themed Gift",
+    "{adj_title} {niche_title} | High Contrast Anime Art Print",
+    "{niche_title} Poster | {adj_title} Cyberpunk Anime Design",
+    "{adj_title} {niche_title} | Dark Aesthetic T-Shirt",
+    "{niche_title} Wall Art | {adj_title} Anime Illustration",
+    "High Contrast {niche_title} | Cyberpunk Anime Poster",
+    "{adj_title} {niche_title} Sticker | Dark Anime Aesthetic",
+    "{niche_title} Art | {adj_title} Techwear Anime Design",
+    "Dark {niche_title} | {adj_title} Anime Phone Case Art",
+    "{adj_title} {niche_title} | Anime Cyberpunk Artwork",
+    "{niche_title} | High Contrast {adj_title} Anime Print",
 ]
 
 _DESC_TEMPLATES: list[str] = [
     (
-        "Perfect for {niche} lovers! This {adj} design makes a great gift for "
-        "anyone obsessed with {niche}. Available on t-shirts, stickers, mugs, "
-        "posters and more. Original artwork, professionally printed."
+        "High contrast {adj} {niche} art for fans of dark anime aesthetics. "
+        "Bold cyberpunk illustration perfect for t-shirts, posters and phone cases. "
+        "Original design, print-on-demand quality."
     ),
     (
-        "Show off your love for {niche} with this {adj} design! "
-        "Great as a gift for birthdays, holidays, or just because. "
-        "Printed on demand on premium products."
+        "This {adj} {niche} design blends anime character art with cyberpunk atmosphere. "
+        "Extreme contrast, neon colours, dark backgrounds — made for those who "
+        "wear their aesthetic. Available on premium merchandise worldwide."
     ),
     (
-        "This {adj} {niche} design is perfect for fans and enthusiasts alike. "
-        "Whether you're buying for yourself or as a gift, this unique artwork "
-        "stands out on any product."
+        "{adj_title} {niche} anime illustration with a dark, edgy aesthetic. "
+        "Perfect for cyberpunk lovers, anime fans and techwear enthusiasts. "
+        "Ships globally on t-shirts, posters, stickers and phone cases."
     ),
     (
-        "A {adj} and original {niche} illustration for true fans. "
-        "Makes a fantastic gift — available as a t-shirt, mug, sticker, "
-        "phone case and many more. Designed with love."
+        "Original {niche} digital art in high-contrast anime style. "
+        "Striking {adj} design that stands out on any product. "
+        "Inspired by cyberpunk, techwear and dark anime culture."
     ),
     (
-        "Unique {niche} art for those who appreciate {adj} design. "
-        "Ships worldwide on quality merchandise. Perfect gift for "
-        "{niche} enthusiasts of all ages."
+        "Dark and {adj} {niche} artwork for the aesthetics community. "
+        "Cyberpunk-meets-anime illustration, professionally printed on demand. "
+        "Great for collectors, cosplayers and fans of edgy design."
     ),
 ]
 
-# Tag building blocks per theme category
+# Tag building blocks — cyberpunk / anime / dark aesthetic focused
 _TAG_POOLS: dict[str, list[str]] = {
-    "animal": [
-        "animal lover", "pet gift", "wildlife art", "nature lover",
-        "cute animal", "animal print", "pet owner gift", "animal illustration",
-        "funny animal", "adorable pet", "animal art", "animal tshirt",
+    "cyberpunk": [
+        "cyberpunk", "techwear", "cyberpunk art", "cyberpunk aesthetic",
+        "neon art", "dark futuristic", "dystopian art", "sci fi art",
+        "cyber aesthetic", "digital art", "glitch art", "neon poster",
+        "cyberpunk poster", "dark anime", "futuristic art",
     ],
-    "space": [
-        "space lover", "astronomy gift", "galaxy art", "cosmic design",
-        "space art", "astronaut", "planet art", "nebula", "star gazer",
-        "space exploration", "universe", "sci fi art",
+    "anime": [
+        "anime art", "anime poster", "anime aesthetic", "anime girl",
+        "manga art", "anime character", "dark anime", "anime illustration",
+        "anime print", "anime sticker", "anime wall art", "anime tshirt",
+        "japanese art", "anime fan", "anime lover",
     ],
-    "nature": [
-        "nature lover", "botanical art", "plant lover", "outdoor gift",
-        "hiking gift", "mountain art", "forest art", "flower art",
-        "garden lover", "eco friendly", "nature print", "wildlife",
+    "solarpunk": [
+        "solarpunk", "solarpunk art", "nature tech", "bioluminescent art",
+        "hopeful future", "green aesthetic", "solarpunk aesthetic",
+        "eco futurism", "nature anime", "floral tech",
     ],
-    "food": [
-        "food lover", "foodie gift", "kitchen art", "chef gift",
-        "cooking lover", "baking gift", "restaurant", "gourmet",
-        "food illustration", "yummy", "delicious", "food print",
+    "dieselpunk": [
+        "dieselpunk", "steampunk art", "industrial art", "retro futurism",
+        "art deco design", "mechanical art", "dieselpunk aesthetic",
+        "gothic industrial", "brass and steam", "retro sci fi",
     ],
-    "hobby": [
-        "hobby gift", "hobbyist", "passion print", "enthusiast gift",
-        "fan art", "collector", "niche gift", "unique gift",
-        "special interest", "funny hobby", "hobby mug", "hobby tshirt",
+    "vaporwave": [
+        "vaporwave", "synthwave", "retrowave", "vaporwave aesthetic",
+        "80s aesthetic", "outrun art", "retro neon", "lo fi aesthetic",
+        "pastel neon", "nostalgia art", "retro poster",
+    ],
+    "gothic": [
+        "dark aesthetic", "gothic art", "dark fantasy", "gothic anime",
+        "dark witch", "occult art", "dark magic", "gothic poster",
+        "horror aesthetic", "gothic illustration", "dark academia",
+    ],
+    "grunge": [
+        "grunge art", "bold graphic", "street art", "urban art",
+        "high contrast", "black and white art", "drip art", "edgy design",
+        "grunge aesthetic", "bold design", "graphic tee", "dark graphic",
     ],
     "general": [
-        "gift idea", "unique gift", "funny gift", "cool design",
-        "original art", "hand drawn", "illustrated", "graphic tee",
-        "art print", "wall art", "home decor", "novelty gift",
-        "birthday gift", "christmas gift", "graduation gift",
-        "stocking stuffer", "aesthetic", "trendy design", "modern art",
-        "minimalist", "retro design", "vintage style", "cute design",
-        "kawaii", "funny", "humorous", "witty", "clever design",
+        "original art", "digital illustration", "art print", "wall art",
+        "poster art", "t-shirt design", "sticker art", "phone case art",
+        "unique design", "indie artist", "dark design", "aesthetic art",
+        "fan art", "cool design", "edgy art", "alternative art",
+        "birthday gift", "gift idea", "art lover gift", "collector art",
     ],
 }
 
 _SEASONAL_TAGS: list[str] = [
-    "christmas gift", "holiday gift", "birthday gift", "anniversary gift",
-    "valentines day", "mothers day", "fathers day", "graduation gift",
-    "new year", "halloween", "thanksgiving", "easter",
+    "halloween art", "dark holiday", "gothic christmas",
+    "spooky aesthetic", "dark valentines", "dark summer",
 ]
 
 
@@ -370,6 +402,7 @@ class FreeTextGenerator:
         raw_desc = desc_tpl.format(
             niche=niche_kw,
             adj=self._rng.choice(_ADJECTIVES),
+            adj_title=adj_title,
         )
         description = raw_desc[:500]
 
@@ -441,42 +474,58 @@ class FreeTextGenerator:
 
     @staticmethod
     def _detect_categories(niche: str) -> list[str]:
-        """Detect broad category from niche keyword for tag pool selection."""
+        """Detect aesthetic category from niche keyword for tag pool selection."""
         cats: list[str] = []
         niche_lower = niche.lower()
+        words = set(niche_lower.split())
 
-        animal_words = {
-            "cat", "dog", "fox", "wolf", "bear", "rabbit", "bunny",
-            "bird", "owl", "parrot", "fish", "turtle", "frog", "axolotl",
-            "dragon", "unicorn", "horse", "cow", "pig", "deer", "lion",
-            "tiger", "elephant", "penguin", "panda", "koala", "sloth",
+        cyberpunk_words = {
+            "cyberpunk", "techwear", "cyber", "neon", "futuristic",
+            "dystopian", "glitch", "android", "mecha", "digital",
+            "hacker", "robot", "sci", "tech", "circuit",
         }
-        space_words = {
-            "space", "galaxy", "cosmos", "star", "planet", "moon",
-            "astronaut", "nebula", "universe", "celestial", "astronomy",
+        anime_words = {
+            "anime", "manga", "kawaii", "chibi", "waifu",
+            "otaku", "girl", "warrior", "samurai", "ninja",
         }
-        nature_words = {
-            "flower", "plant", "tree", "forest", "mountain", "ocean",
-            "beach", "garden", "botanical", "nature", "leaf", "mushroom",
-            "hiking", "camping", "outdoor", "wildlife",
+        solarpunk_words = {
+            "solarpunk", "sunpunk", "bioluminescent", "nature",
+            "green", "botanical", "organic", "garden", "forest",
         }
-        food_words = {
-            "coffee", "pizza", "food", "cake", "sushi", "burger",
-            "cooking", "baking", "chef", "kitchen", "tea", "wine",
+        dieselpunk_words = {
+            "dieselpunk", "steampunk", "industrial", "mechanic",
+            "gear", "brass", "steam", "clockwork", "retro",
+        }
+        vaporwave_words = {
+            "vaporwave", "synthwave", "retrowave", "outrun",
+            "80s", "lofi", "pastel", "nostalgic", "retro",
+        }
+        gothic_words = {
+            "gothic", "dark", "witch", "occult", "horror",
+            "shadow", "cursed", "necromancer", "ghost", "doom",
+        }
+        grunge_words = {
+            "grunge", "bold", "street", "urban", "drip",
+            "psychedelic", "graphic", "contrast",
         }
 
-        for w in niche_lower.split():
-            if w in animal_words:
-                cats.append("animal")
-            if w in space_words:
-                cats.append("space")
-            if w in nature_words:
-                cats.append("nature")
-            if w in food_words:
-                cats.append("food")
+        if words & cyberpunk_words:
+            cats.append("cyberpunk")
+        if words & anime_words:
+            cats.append("anime")
+        if words & solarpunk_words:
+            cats.append("solarpunk")
+        if words & dieselpunk_words:
+            cats.append("dieselpunk")
+        if words & vaporwave_words:
+            cats.append("vaporwave")
+        if words & gothic_words:
+            cats.append("gothic")
+        if words & grunge_words:
+            cats.append("grunge")
 
         if not cats:
-            cats.append("hobby")
+            cats.append("anime")   # default — all designs have anime influence
 
         return list(set(cats))
 

@@ -251,16 +251,19 @@ class RedbubbleUploader:
             self._context.add_init_script(self._STEALTH_SCRIPT)
 
         # ── Merge Redbubble auth cookies ──────────────────────────────────────
-        session_path = Path(self.SESSION_FILE)
-        if session_path.exists():
-            try:
-                data = json.loads(session_path.read_text(encoding="utf-8"))
-                cookies = data.get("cookies", [])
-                if cookies:
-                    self._context.add_cookies(cookies)
-                    logger.info("Merged %d auth cookies into browser.", len(cookies))
-            except Exception as exc:
-                logger.warning("Could not merge session cookies: %s", exc)
+        # Only merge session cookies if not running in CDP mode, to avoid overwriting
+        # active browser cookies in the real Opera GX profile.
+        if not self._is_cdp:
+            session_path = Path(self.SESSION_FILE)
+            if session_path.exists():
+                try:
+                    data = json.loads(session_path.read_text(encoding="utf-8"))
+                    cookies = data.get("cookies", [])
+                    if cookies:
+                        self._context.add_cookies(cookies)
+                        logger.info("Merged %d auth cookies into browser.", len(cookies))
+                except Exception as exc:
+                    logger.warning("Could not merge session cookies: %s", exc)
 
         # ── Pick the right tab ───────────────────────────────────────────────────────
         # Priority order:
@@ -284,8 +287,20 @@ class RedbubbleUploader:
                             break
                     except Exception:
                         continue
-            except Exception:
-                pass
+
+                # Pass 2: if no redbubble tab found, try to find a failed/error tab to reuse
+                if self._page is None:
+                    for p in existing_pages:
+                        try:
+                            url = p.url
+                            if not p.is_closed() and ("chrome-error" in url or "about:blank" in url or url == ""):
+                                self._page = p
+                                logger.info("Reusing failed/blank/empty tab: %s", url[:80])
+                                break
+                        except Exception:
+                            continue
+            except Exception as e:
+                logger.warning("Error checking existing pages: %s", e)
 
         if self._page is None:
             # Open a fresh tab — safer than reusing an internal/unknown tab
@@ -305,11 +320,8 @@ class RedbubbleUploader:
                 # CDP mode: PARK the tab at the upload URL instead of closing it.
                 # This means the next run finds a Redbubble tab already open and
                 # skips the Cloudflare challenge entirely.
-                try:
-                    Path(self.SESSION_FILE).parent.mkdir(parents=True, exist_ok=True)
-                    self._context.storage_state(path=self.SESSION_FILE)
-                except Exception as exc:
-                    logger.warning("Could not save session state: %s", exc)
+                # We skip saving storage_state to a file in CDP mode since the real
+                # browser profile handles session persistence automatically.
                 try:
                     if self._page and not self._page.is_closed():
                         # Navigate to upload URL — do NOT close the tab
@@ -361,27 +373,35 @@ class RedbubbleUploader:
 
     def _is_logged_in(self) -> bool:
         """
-        Check authenticated status by reading the saved session file —
-        no browser navigation required, so Cloudflare is never triggered.
-
-        An authenticated session has either:
-        - a 'refresh_token' cookie (only set after real login), OR
-        - an open_id_token JWT whose 'amr' claim contains 'authenticated'
+        Check authenticated status by reading the active cookies in the browser context
+        or falling back to the saved session file (for non-CDP runs).
         """
         import json as _json
         import base64 as _b64
         import time as _time
 
-        session_path = Path(self.SESSION_FILE)
-        if not session_path.exists():
-            logger.info("No session file — not logged in.")
-            return False
-        try:
-            data = _json.loads(session_path.read_text(encoding="utf-8"))
-        except Exception:
+        cookies = []
+        if self._context:
+            try:
+                cookies = self._context.cookies()
+                logger.info("Checked active browser context cookies: found %d cookies.", len(cookies))
+            except Exception as exc:
+                logger.warning("Could not read cookies from context: %s", exc)
+
+        # Fallback to session file if no cookies found in context
+        if not cookies:
+            session_path = Path(self.SESSION_FILE)
+            if session_path.exists():
+                try:
+                    data = _json.loads(session_path.read_text(encoding="utf-8"))
+                    cookies = data.get("cookies", [])
+                except Exception:
+                    pass
+
+        if not cookies:
+            logger.info("No cookies found — not logged in.")
             return False
 
-        cookies = data.get("cookies", [])
         now = _time.time()
 
         # refresh_token only exists when the user is authenticated
@@ -443,6 +463,22 @@ class RedbubbleUploader:
                 "Waiting up to %ds…", timeout_ms // 1000
             )
 
+            # Bring page/tab to front so it is visible to the user
+            try:
+                page.bring_to_front()
+            except Exception:
+                pass
+
+            # Alert user with beep sound on Windows
+            try:
+                import winsound
+                # Play 3 beeps
+                for _ in range(3):
+                    winsound.Beep(1000, 300)
+                    time.sleep(0.1)
+            except Exception:
+                pass
+
             # Phase 1: wait for CF text to disappear (user completes checkbox)
             page.wait_for_function(
                 """() => {
@@ -474,6 +510,11 @@ class RedbubbleUploader:
             """)
             if still_cf:
                 logger.warning("Cloudflare re-challenge after reload — waiting again…")
+                try:
+                    import winsound
+                    winsound.Beep(1200, 400)
+                except Exception:
+                    pass
                 page.wait_for_function(
                     """() => {
                         const txt = (document.body && document.body.innerText) || '';
@@ -492,7 +533,9 @@ class RedbubbleUploader:
             self._human_delay(2.5, 4.0)
 
         except Exception as exc:
-            logger.debug("CF wait: %s", exc)
+            logger.error("Cloudflare challenge wait timed out or failed: %s", exc)
+            # Raise exception so the upload attempt fails early and triggers a clean retry/reload
+            raise RuntimeError("Cloudflare challenge was not resolved in time.")
 
     def _dismiss_cookie_banner(self) -> None:
         """Try to dismiss GDPR/cookie consent banners if present."""
@@ -1222,10 +1265,8 @@ class RedbubbleUploader:
                             "    const dt  = (el.getAttribute('data-testid')||'').toLowerCase();"
                             "    if (/tag|keyword/.test(id+nm+cls+lbl+ph+dt)) {"
                             "      if (el.tagName==='INPUT'||el.tagName==='TEXTAREA') {"
-                            "        const pd = Object.getOwnPropertyDescriptor("
-                            "          window.HTMLInputElement.prototype,'value')"
-                            "          || Object.getOwnPropertyDescriptor("
-                            "          window.HTMLTextAreaElement.prototype,'value');"
+                            "        const proto = el instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;"
+                            "        const pd = Object.getOwnPropertyDescriptor(proto, 'value');"
                             "        if (pd&&pd.set) pd.set.call(el,tagStr); else el.value=tagStr;"
                             "        el.dispatchEvent(new Event('input',{bubbles:true}));"
                             "        el.dispatchEvent(new Event('change',{bubbles:true}));"

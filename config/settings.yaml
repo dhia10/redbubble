@@ -74,6 +74,23 @@ scheduler:
   run_time: "09:00"               # Daily run time (local time)
   timezone: "UTC"
 
+# ── Pinterest cross-promotion ─────────────────────────────────────────────────
+# Each successful Redbubble upload is automatically pinned to Pinterest.
+# The pin contains: design image + SEO title + description + Redbubble link.
+# Pinterest pins are indexed by Google Images → double traffic source (free).
+#
+# Requirements:
+#   1. Be logged into Pinterest manually in Opera GX before running the pipeline.
+#   2. Create the board in advance (or let the publisher pick the first board).
+#   3. start_debug_browser.bat must be running (same as for Redbubble uploads).
+pinterest:
+  enabled: true
+  # Default / fallback board — the publisher auto-routes to the right board
+  # based on the niche (NEON → cyberpunk, JUNO → solarpunk, KAI → dieselpunk, etc.)
+  board_name: "NEON: High Contrast Cyberpunk Techwear Designs"
+  cdp_port: 9222                    # Must match start_debug_browser.bat
+  timeout_ms: 60000
+
 analytics:
   track_interval_hours: 24
   min_views_to_rank: 3
