@@ -406,13 +406,34 @@ class PinterestPublisher:
             raise RuntimeError("Could not find or click the Publish button on Pinterest.")
 
         # Wait for URL to leave pin-builder (success = redirect to the new pin)
+        success = False
         try:
             page.wait_for_url(
                 lambda url: "pin-builder" not in url and "pinterest.com" in url,
-                timeout=45_000,
+                timeout=30_000,
             )
+            success = True
         except Exception:
-            pass   # May stay on builder with a success toast - that's also fine
+            # If URL didn't change, check for a success toast/dialog
+            self._delay(2.0, 3.0)
+            success = page.evaluate("""() => {
+                // Check if any element contains success text
+                for (const el of document.querySelectorAll('*')) {
+                    if (el.children.length === 0) {
+                        const txt = (el.textContent || '').trim().toLowerCase();
+                        if (txt.includes('saved to') || txt.includes('created a pin') || txt.includes('see your pin') || txt.includes('created!')) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }""")
+
+        if not success:
+            raise RuntimeError(
+                "Pin publication could not be verified. "
+                "The page URL did not change and no success notification ('Saved to', 'Created a Pin', 'See your Pin') was detected."
+            )
 
         self._delay(2.0, 3.0)
         pin_url = page.url
@@ -550,7 +571,15 @@ class PinterestPublisher:
                 if loc.count() > 0:
                     loc.scroll_into_view_if_needed(timeout=3_000)
                     loc.click(timeout=3000)
-                    loc.fill(description)
+                    # Clear first
+                    loc.focus()
+                    page.keyboard.press("Control+A")
+                    page.keyboard.press("Backspace")
+                    # Use keyboard.insert_text to update Draft.js state in a single event
+                    try:
+                        page.keyboard.insert_text(description)
+                    except Exception:
+                        loc.fill(description)
                     logger.info("Pinterest: description filled.")
                     return
             except Exception:
@@ -573,7 +602,9 @@ class PinterestPublisher:
                         if (/tell everyone|description|note|about/.test(hint)) {
                             el.focus();
                             if (el.getAttribute('contenteditable') === 'true' || el.isContentEditable) {
-                                el.textContent = desc;
+                                document.execCommand('selectAll', false, null);
+                                document.execCommand('delete', false, null);
+                                document.execCommand('insertText', false, desc);
                             } else {
                                 const proto = el instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
                                 const pd = Object.getOwnPropertyDescriptor(proto, 'value');
@@ -872,11 +903,17 @@ class PinterestPublisher:
             return
 
         # -- Type to search for the board ---------------------------------
+        try:
+            page.wait_for_selector('#pickerSearchField', state="visible", timeout=15_000)
+            logger.info("Pinterest: board search field is visible.")
+        except Exception as exc:
+            logger.warning("Pinterest: board search field never became visible: %s", exc)
+
         search_selectors = [
-            'input[aria-label*="boards" i]',
+            '#pickerSearchField',
+            'input#pickerSearchField',
             'input[aria-label*="Search through your boards" i]',
-            '[role="listbox"] input',
-            '[role="menu"] input',
+            'input[aria-label*="boards" i]',
             'input[placeholder*="Search board" i]',
             '[data-testid="board-search-input"]',
             '[data-test-id="board-search-input"]',
@@ -897,16 +934,19 @@ class PinterestPublisher:
             # JS fallback to find search input inside popover/listbox
             search_filled = page.evaluate(
                 """(name) => {
-                    const popover = document.querySelector('[role="listbox"], [role="menu"], [class*="popover"], [class*="dropdown"], div[class*="menu" i]');
-                    if (popover) {
-                        const input = popover.querySelector('input');
-                        if (input) {
-                            input.focus();
-                            input.value = name;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                            return true;
-                        }
+                    const input = document.getElementById('pickerSearchField') || 
+                                  document.querySelector('input[aria-label*="Search through your boards" i]') ||
+                                  document.querySelector('[role="dialog"] input, [role="listbox"] input, [role="menu"] input');
+                    if (input) {
+                        input.focus();
+                        const proto = input instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                        const pd = Object.getOwnPropertyDescriptor(proto, 'value');
+                        if (pd && pd.set) pd.set.call(input, name);
+                        else input.value = name;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.blur();
+                        return true;
                     }
                     // Fallback to any input on page that is visible, excluding global headers/navs/search boxes
                     for (const inp of document.querySelectorAll('input')) {
@@ -918,7 +958,7 @@ class PinterestPublisher:
                             const id = parent.id || '';
                             if (tagName === 'header' || tagName === 'nav' || 
                                 className.includes('header') || className.includes('nav') || 
-                                className.includes('SearchBox') || id.includes('header') || id.includes('search')) {
+                                className.includes('SearchBox') || id.includes('header') || (id.includes('search') && id !== 'pickerSearchField')) {
                                 isGlobal = true;
                                 break;
                             }
@@ -928,9 +968,13 @@ class PinterestPublisher:
                         const txt = (inp.placeholder || inp.ariaLabel || '').toLowerCase();
                         if (/search|board/i.test(txt)) {
                             inp.focus();
-                            inp.value = name;
+                            const proto = inp instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                            const pd = Object.getOwnPropertyDescriptor(proto, 'value');
+                            if (pd && pd.set) pd.set.call(inp, name);
+                            else inp.value = name;
                             inp.dispatchEvent(new Event('input', { bubbles: true }));
                             inp.dispatchEvent(new Event('change', { bubbles: true }));
+                            inp.blur();
                             return true;
                         }
                     }
@@ -944,6 +988,11 @@ class PinterestPublisher:
 
         # -- Click matching board ------------------------------------------
         board_item_selectors = [
+            f'[data-test-id="board-row-{board_name}"]',
+            f'[data-testid="board-row-{board_name}"]',
+            f'[data-test-id="board-row-{board_name}"] button[aria-label="Publish"]',
+            f'[data-test-id="board-row-{board_name}"] button',
+            f'[data-testid="board-row-{board_name}"] button',
             f'[data-testid*="board-option"]:has-text("{board_name}")',
             f'[data-test-id*="board-option"]:has-text("{board_name}")',
             f'li:has-text("{board_name}")',
@@ -966,11 +1015,13 @@ class PinterestPublisher:
         if not selected:
             # Try to click "Create board" button in the dropdown via Playwright locator first
             for create_btn_sel in (
+                '[data-test-id="create-board-button"]',
+                '[data-testid="create-board-button"]',
+                '[data-test-id="create-board"]',
+                '[data-testid="create-board"]',
                 '[role="button"]:has-text("Create board")',
                 'div[role="button"]:has-text("Create board")',
                 'button:has-text("Create board")',
-                '[data-testid*="create-board"]',
-                '[data-test-id*="create-board"]',
             ):
                 try:
                     loc = page.locator(create_btn_sel).first
@@ -990,8 +1041,12 @@ class PinterestPublisher:
                     const container = document.querySelector('[role="listbox"], [role="menu"], [class*="popover"], [class*="dropdown"], div[class*="menu" i]');
                     const elements = container ? Array.from(container.querySelectorAll('*')) : Array.from(document.querySelectorAll('[role="option"], li, button, div'));
                     
-                    // 1. Try exact match
-                    let matched = elements.find(el => (el.textContent || '').trim().toLowerCase() === cleanName);
+                    // 1. Try exact match using test-id or text
+                    let matched = elements.find(el => {
+                        const testId = el.getAttribute('data-test-id') || el.getAttribute('data-testid') || '';
+                        const txt = (el.textContent || '').trim().toLowerCase();
+                        return testId === `board-row-${name}` || txt === cleanName;
+                    });
                     
                     // 2. Try substring match on option-like elements
                     if (!matched) {
@@ -1015,7 +1070,12 @@ class PinterestPublisher:
                     }
                     
                     if (matched) {
-                        matched.click();
+                        const publishBtn = matched.querySelector('button[aria-label="Publish"], button[aria-label="Save"], button');
+                        if (publishBtn) {
+                            publishBtn.click();
+                        } else {
+                            matched.click();
+                        }
                         return 'matched';
                     }
                     
@@ -1023,7 +1083,7 @@ class PinterestPublisher:
                     const createBtn = elements.find(el => {
                         const testId = el.getAttribute('data-test-id') || el.getAttribute('data-testid') || '';
                         const txt = (el.textContent || '').trim().toLowerCase();
-                        return testId.includes('create-board') || txt === 'create board';
+                        return testId === 'create-board-button' || testId.includes('create-board') || txt.includes('create board');
                     });
                     if (createBtn) {
                         const clickTarget = createBtn.closest('button, [role="button"]') || createBtn;
@@ -1049,6 +1109,8 @@ class PinterestPublisher:
             # Fill name and click create in the modal via Playwright locator first
             modal_filled = False
             for modal_inp_sel in (
+                '[role="dialog"] input[name="boardName"]',
+                '[role="dialog"] #boardEditName',
                 'input[name="boardName"]',
                 'input[placeholder*="Name" i]',
                 '[data-test-id="board-name-input"]',
@@ -1066,21 +1128,25 @@ class PinterestPublisher:
 
             if modal_filled:
                 for confirm_sel in (
-                    'button:has-text("Create")',
-                    'button:has-text("Done")',
-                    'button:has-text("Save")',
-                    '[data-test-id="board-create-button"]',
-                    '[data-testid="board-create-button"]',
-                    '[role="button"]:has-text("Create")',
+                    '[role="dialog"] [data-testid="board-form-submit-button"]',
+                    '[role="dialog"] [data-test-id="board-form-submit-button"]',
+                    '[data-testid="board-form-submit-button"]',
+                    '[data-test-id="board-form-submit-button"]',
+                    '[role="dialog"] button:has-text("Create")',
+                    '[role="dialog"] button:has-text("Done")',
+                    '[role="dialog"] button:has-text("Save")',
+                    '[role="dialog"] [role="button"]:has-text("Create")',
                 ):
                     try:
                         cloc = page.locator(confirm_sel).first
                         if cloc.count() > 0 and cloc.is_visible(timeout=3_000):
-                            cloc.click(timeout=3000)
-                            logger.info("Pinterest: board '%s' created and selected via creation modal.", board_name)
-                            selected = True
-                            self._delay(2.0, 3.0)
-                            break
+                            disabled = cloc.get_attribute("disabled") is not None or cloc.get_attribute("aria-disabled") == "true"
+                            if not disabled:
+                                cloc.click(timeout=3000)
+                                logger.info("Pinterest: board '%s' created and selected via creation modal.", board_name)
+                                selected = True
+                                self._delay(2.0, 3.0)
+                                break
                     except Exception:
                         continue
 
@@ -1088,19 +1154,31 @@ class PinterestPublisher:
                 # Fallback to JS modal filling and clicking
                 created = page.evaluate(
                     """(name) => {
-                        const modalInput = document.querySelector('input[name="boardName"], input[placeholder*="Name" i], input[id*="board" i], [data-testid="board-name-input"], [data-test-id="board-name-input"]');
+                        const dialog = document.querySelector('[role="dialog"], [aria-modal="true"], [class*="modal" i]');
+                        if (!dialog) return false;
+                        
+                        const modalInput = dialog.querySelector('input[name="boardName"], input[placeholder*="Name" i], #boardEditName, [data-testid="board-name-input"], [data-test-id="board-name-input"]');
                         if (modalInput) {
                             modalInput.focus();
-                            modalInput.value = name;
+                            const proto = modalInput instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                            const pd = Object.getOwnPropertyDescriptor(proto, 'value');
+                            if (pd && pd.set) pd.set.call(modalInput, name);
+                            else modalInput.value = name;
                             modalInput.dispatchEvent(new Event('input', { bubbles: true }));
                             modalInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            modalInput.blur();
                         }
-                        const createBtn = Array.from(document.querySelectorAll('button, [role="button"], div')).find(b => {
-                            const txt = (b.textContent || '').trim().toLowerCase();
-                            return txt === 'create' || txt === 'done' || txt === 'save';
-                        });
+                        
+                        const createBtn = dialog.querySelector('[data-testid="board-form-submit-button"], [data-test-id="board-form-submit-button"]') || 
+                                          Array.from(dialog.querySelectorAll('button, [role="button"], div')).find(b => {
+                                              const txt = (b.textContent || '').trim().toLowerCase();
+                                              return txt === 'create' || txt === 'done' || txt === 'save';
+                                          });
                         if (createBtn) {
                             const clickTarget = createBtn.closest('button, [role="button"]') || createBtn;
+                            if (clickTarget.disabled || clickTarget.getAttribute('aria-disabled') === 'true') {
+                                return false; // button is disabled, cannot create
+                            }
                             clickTarget.focus();
                             clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
                             clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
@@ -1214,12 +1292,47 @@ class PinterestPublisher:
             'button:has-text("Save")',
             'button[type="submit"]',
         ]
+        
+        # Wait up to 15s for the Publish button to not be disabled (handling auto-save spinner)
+        import time as _time
+        start_wait = _time.time()
+        button_ready = False
+        target_loc = None
+        target_sel = None
+        
+        logger.info("Pinterest: waiting for Publish button to be enabled (handling auto-save spinner)...")
+        while _time.time() - start_wait < 15.0:
+            for sel in publish_selectors:
+                try:
+                    loc = page.locator(sel).first
+                    if loc.count() > 0 and loc.is_visible(timeout=500):
+                        disabled = loc.get_attribute("disabled") is not None or loc.get_attribute("aria-disabled") == "true"
+                        if not disabled:
+                            target_loc = loc
+                            target_sel = sel
+                            button_ready = True
+                            break
+                except Exception:
+                    continue
+            if button_ready:
+                break
+            _time.sleep(0.5)
+            
+        if target_loc:
+            try:
+                target_loc.click(force=True, timeout=5000)
+                logger.info("Pinterest: publish clicked (%s).", target_sel)
+                return True
+            except Exception as e:
+                logger.warning("Pinterest: click failed on %s: %s", target_sel, e)
+
+        # Fallback loop in case waiting failed but we want to try clicking anyway
         for sel in publish_selectors:
             try:
                 loc = page.locator(sel).first
-                if loc.count() > 0 and loc.is_visible(timeout=3_000):
+                if loc.count() > 0 and loc.is_visible(timeout=1_000):
                     loc.click(force=True, timeout=3000)
-                    logger.info("Pinterest: publish clicked (%s).", sel)
+                    logger.info("Pinterest: publish clicked (fallback click %s).", sel)
                     return True
             except Exception:
                 continue
@@ -1234,6 +1347,9 @@ class PinterestPublisher:
                 for (const el of elements) {
                     const txt = (el.textContent || '').trim().toLowerCase();
                     if (txt === 'publish' || txt === 'save' || txt === 'done') {
+                        if (el.disabled || el.getAttribute('aria-disabled') === 'true') {
+                            continue;
+                        }
                         el.click();
                         return 'button:' + txt;
                     }
@@ -1280,36 +1396,38 @@ class PinterestPublisher:
 
           Shop this design -> [Redbubble URL]
 
-          #tag1 #tag2 ... (up to 15 hashtags)
+          Keywords: ...
 
-        Pinterest pins with a destination link + hashtags rank in both
+        Pinterest pins with a destination link + keywords rank in both
         Pinterest search AND Google image search, giving double exposure.
         """
-        desc = (description or "").strip()[:300]
-
-        # Build hashtags: niche first, then tags
+        # Strip all '#' characters to prevent triggering autocomplete dropdown lockups
+        desc = (description or "").replace("#", "").strip()[:300]
+ 
+        # Build plain text keywords: niche first, then tags
         raw_tags = []
         if niche:
             raw_tags.append(niche)
         raw_tags.extend(tags[:15])
-
-        hashtags_parts = []
-        seen_ht: set = set()
+ 
+        keywords_parts = []
+        seen_kw: set = set()
         for t in raw_tags:
-            ht = re.sub(r"[^a-zA-Z0-9]", "", t.replace(" ", "")).lower()
-            if ht and ht not in seen_ht:
-                hashtags_parts.append(f"#{ht}")
-                seen_ht.add(ht)
-            if len(hashtags_parts) >= 15:
+            kw = t.strip().lower()
+            if kw and kw not in seen_kw:
+                keywords_parts.append(kw)
+                seen_kw.add(kw)
+            if len(keywords_parts) >= 15:
                 break
-        hashtags = " ".join(hashtags_parts)
-
+        keywords = ", ".join(keywords_parts)
+ 
         parts = [desc]
-        if redbubble_url:
-            parts.append(f"\n\n[Shop] Shop this design -> {redbubble_url}")
-        if hashtags:
-            parts.append(f"\n\n{hashtags}")
-
+        # Commented out to prevent rich-text editor link preview lockups on modern Pinterest
+        # if redbubble_url:
+        #     parts.append(f"\n\n[Shop] Shop this design -> {redbubble_url}")
+        if keywords:
+            parts.append(f"\n\nKeywords: {keywords}")
+ 
         return "".join(parts)[:500]   # Pinterest description cap
 
     # ------------------------------------------------------------------
