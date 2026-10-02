@@ -1,50 +1,50 @@
-# 🎨 Redbubble Automation System
+# Redbubble Automation Pipeline — Content & Workflow Engineering
 
 A fully automated print-on-demand publishing pipeline that detects trends, generates AI artwork, writes SEO metadata, and uploads products to Redbubble — every day, on autopilot.
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 redbubble_automation/
-├── config/
-│   ├── settings.yaml        ← All system configuration
-│   └── prompts.yaml         ← All LLM prompt templates
-│
-├── data/
-│   ├── database.db          ← SQLite database (auto-created)
-│   ├── images/              ← Generated artwork files
-│   └── exports/             ← Screenshots, exports
-│
-├── logs/
-│   └── pipeline.log         ← Daily run logs
-│
-├── modules/
-│   ├── trend_detector.py    ← Google Trends + Redbubble + Pinterest scraper
-│   ├── niche_scorer.py      ← GPT-powered niche scoring
-│   ├── idea_generator.py    ← Design concept generation
-│   ├── prompt_builder.py    ← Image-gen prompt construction
-│   ├── image_generator.py   ← AI artwork generation (DALL-E / Leonardo / Ideogram)
-│   ├── seo_generator.py     ← Titles, descriptions, 50 tags
-│   ├── database_manager.py  ← All SQLite CRUD operations
-│   ├── redbubble_uploader.py← Playwright browser automation
-│   ├── analytics.py         ← Performance tracking & niche ranking
-│   └── scheduler.py         ← Daily pipeline scheduling
-│
-├── dashboard/
-│   └── app.py               ← Streamlit monitoring dashboard
-│
-├── tests/                   ← Unit tests
-├── main.py                  ← Pipeline entry point
-├── requirements.txt
-├── .env.template            ← Copy to .env and fill in secrets
-└── README.md
+ config/
+    settings.yaml        ← All system configuration
+    prompts.yaml         ← All LLM prompt templates
+
+ data/
+    database.db          ← SQLite database (auto-created)
+    images/              ← Generated artwork files
+    exports/             ← Screenshots, exports
+
+ logs/
+    pipeline.log         ← Daily run logs
+
+ modules/
+    trend_detector.py    ← Google Trends + Redbubble + Pinterest scraper
+    niche_scorer.py      ← GPT-powered niche scoring
+    idea_generator.py    ← Design concept generation
+    prompt_builder.py    ← Image-gen prompt construction
+    image_generator.py   ← AI artwork generation (DALL-E / Leonardo / Ideogram)
+    seo_generator.py     ← Titles, descriptions, 50 tags
+    database_manager.py  ← All SQLite CRUD operations
+    redbubble_uploader.py← Playwright browser automation
+    analytics.py         ← Performance tracking & niche ranking
+    scheduler.py         ← Daily pipeline scheduling
+
+ dashboard/
+    app.py               ← Streamlit monitoring dashboard
+
+ tests/                   ← Unit tests
+ main.py                  ← Pipeline entry point
+ requirements.txt
+ .env.template            ← Copy to .env and fill in secrets
+ README.md
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Clone & set up environment
 
@@ -103,7 +103,7 @@ streamlit run dashboard/app.py
 
 ---
 
-## 🗄 Database Schema
+## Database Schema
 
 ```sql
 -- Trending topics / keyword niches
@@ -205,7 +205,7 @@ CREATE TABLE analytics (
 
 ---
 
-## 🖥 Windows Deployment (Local)
+## Windows Deployment (Local)
 
 ### Option A — Built-in scheduler (simplest)
 
@@ -235,7 +235,7 @@ schtasks /Create /SC DAILY /TN "RedbubbleAutomation" ^
 
 ---
 
-## ☁️ Cloud Deployment (Azure VM)
+## Cloud Deployment (Azure VM)
 
 ### 1. Provision the VM
 
@@ -290,7 +290,7 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
-## 🔧 Module Reference
+## Module Reference
 
 | Module | Purpose |
 |---|---|
@@ -308,7 +308,7 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
-## ⚙️ Configuration Reference (`settings.yaml`)
+## Configuration Reference (`settings.yaml`)
 
 | Key | Default | Description |
 |---|---|---|
@@ -322,7 +322,7 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 1. **Multi-platform upload** — extend to Teepublic, Merch by Amazon, Society6
 2. **A/B title testing** — generate 2 titles and auto-select the better-performing one
@@ -336,7 +336,7 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
-## ⚠️ Legal & Policy Notes
+## Legal & Policy Notes
 
 - This system is designed to generate **100% original artwork** using AI.
 - The IP risk filter in `niche_scorer.py` blocks keywords associated with trademarked/copyrighted content.
@@ -346,7 +346,7 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
-## 📄 License
+## License
 
 MIT — free to use, modify, and distribute.
 "# redbubble" 
