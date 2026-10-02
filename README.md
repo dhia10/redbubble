@@ -49,8 +49,8 @@ redbubble_automation/
 ### 1. Clone & set up environment
 
 ```bash
-git clone https://github.com/yourname/redbubble-automation.git
-cd redbubble-automation
+git clone https://github.com/dhia10/redbubble.git
+cd redbubble
 
 python -m venv venv
 # Windows:
@@ -346,7 +346,14 @@ nohup streamlit run dashboard/app.py --server.port 8501 &
 
 ---
 
+## Author & Contact
+
+- **Author:** Dhia Romdhane — Data Science & AI Engineering (ESPRIT)
+- **LinkedIn:** [linkedin.com/in/dhia-romdhane-ds](https://www.linkedin.com/in/dhia-romdhane-ds/)
+- **GitHub:** [github.com/dhia10](https://github.com/dhia10)
+
+---
+
 ## License
 
 MIT — free to use, modify, and distribute.
-"# redbubble" 
