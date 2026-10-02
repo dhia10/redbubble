@@ -1,6 +1,6 @@
-# Redbubble Automation Pipeline — Content & Workflow Engineering
+# Redbubble Automation Pipeline (Scraping, Metadata & Staging)
 
-A fully automated print-on-demand publishing pipeline that detects trends, generates AI artwork, writes SEO metadata, and uploads products to Redbubble — every day, on autopilot.
+Modular data collection and workflow pipeline designed to track product trends, structure metadata, and manage staging via SQLite and a Streamlit dashboard.
 
 ---
 
